@@ -160,6 +160,12 @@ class DuplicateAnalysis(Analysis):
         if hasattr(analysis_parent, 'getSample'):
             return analysis_parent.getSample()
 
+    def getAnalysisPortalType(self):
+        """
+        It is sued as metacolumn
+        """
+        return self.getAnalysis().portal_type
+
     def workflow_script_submit(self):
         workflow = getToolByName(self, 'portal_workflow')
         self.reindexObject(idxs=["review_state", ])
@@ -214,7 +220,6 @@ class DuplicateAnalysis(Analysis):
         if skip(self, "retract"):
             return
         workflow = getToolByName(self, 'portal_workflow')
-        self.reindexObject(idxs=["review_state", ])
         # Escalate action to the Worksheet.
         ws = self.getBackReferences('WorksheetAnalysis')
         ws = ws[0]
@@ -225,12 +230,12 @@ class DuplicateAnalysis(Analysis):
                 if not "retract all analyses" in self.REQUEST['workflow_skiplist']:
                     self.REQUEST["workflow_skiplist"].append("retract all analyses")
                 workflow.doActionFor(ws, 'retract')
+        self.reindexObject()
 
     def workflow_script_verify(self):
         if skip(self, "verify"):
             return
         workflow = getToolByName(self, 'portal_workflow')
-        self.reindexObject(idxs=["review_state", ])
         # If all other analyses on the worksheet are verified,
         # then verify the worksheet.
         ws = self.getBackReferences('WorksheetAnalysis')
@@ -248,16 +253,15 @@ class DuplicateAnalysis(Analysis):
                 if not "verify all analyses" in self.REQUEST['workflow_skiplist']:
                     self.REQUEST["workflow_skiplist"].append("verify all analyses")
                 workflow.doActionFor(ws, "verify")
+        self.reindexObject()
 
     def workflow_script_assign(self):
         if skip(self, "assign"):
             return
         workflow = getToolByName(self, 'portal_workflow')
-        self.reindexObject(idxs=["review_state", ])
         rc = getToolByName(self, REFERENCE_CATALOG)
         wsUID = self.REQUEST['context_uid']
         ws = rc.lookupObject(wsUID)
-
         # retract the worksheet to 'open'
         ws_state = workflow.getInfoFor(ws, 'review_state')
         if ws_state != 'open':
@@ -266,12 +270,12 @@ class DuplicateAnalysis(Analysis):
             else:
                 self.REQUEST["workflow_skiplist"].append('retract all analyses')
             workflow.doActionFor(ws, 'retract')
+        self.reindexObject()
 
     def workflow_script_unassign(self):
         if skip(self, "unassign"):
             return
         workflow = getToolByName(self, 'portal_workflow')
-        self.reindexObject(idxs=["review_state", ])
         rc = getToolByName(self, REFERENCE_CATALOG)
         wsUID = self.REQUEST['context_uid']
         ws = rc.lookupObject(wsUID)
@@ -323,5 +327,6 @@ class DuplicateAnalysis(Analysis):
             if workflow.getInfoFor(ws, 'review_state') != 'open':
                 workflow.doActionFor(ws, 'retract')
                 skip(ws, 'retract', unskip=True)
+        self.reindexObject()
 
 registerType(DuplicateAnalysis, PROJECTNAME)

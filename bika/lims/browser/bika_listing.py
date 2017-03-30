@@ -15,6 +15,7 @@ import App
 import pkg_resources
 import plone
 import transaction
+from AccessControl import getSecurityManager
 from Acquisition import aq_parent, aq_inner
 from DateTime import DateTime
 from OFS.interfaces import IOrderedContainer
@@ -426,6 +427,11 @@ class BikaListingView(BrowserView):
     # The advanced filter bar instance, it is initialized using
     # getAdvancedFilterBar
     _advfilterbar = None
+    # The following variable will contain an instance that checks whether the
+    # logged in user has a certain permission for some object.
+    # Save getSecurityManager() in this variable and then use
+    # security_manager.checkPermission(ModifyPortalContent, obj)
+    security_manager = None
 
     def __init__(self, context, request, **kwargs):
         self.field_icons = {}
@@ -455,6 +461,8 @@ class BikaListingView(BrowserView):
         self.show_all = False
         self.show_more = False
         self.limit_from = 0
+        self.mtool = None
+        self.member = None
         # The listing object is bound to a class called BikaListingFilterBar
         # which can display an additional filter bar in the listing view in
         # order to filter the items by some terms. These terms should be
@@ -470,7 +478,7 @@ class BikaListingView(BrowserView):
         """Get workflow state of object in wf_id.
         First try request: <form_id>_review_state
         Then try 'default': self.default_review_state
-        :return: item from self.review_states
+        :returns: item from self.review_states
         """
         if not self.review_states:
             logger.error("%s.review_states is undefined." % self)
@@ -751,6 +759,13 @@ class BikaListingView(BrowserView):
             url = url + "?" + "&".join(["%s=%s"%(x,y) for x,y in query.items()])
         return url
 
+    def before_render(self):
+        """
+        This function should be overriden in order to set value that should be
+        loaded before the template being rendered.
+        """
+        pass
+
     def __call__(self):
         """ Handle request parameters and render the form."""
 
@@ -772,6 +787,8 @@ class BikaListingView(BrowserView):
             cookie_data[k] = v
         self.save_filter_bar_values(cookie_data)
         self._process_request()
+        self.mtool = getToolByName(self.context, 'portal_membership')
+        self.member = self.mtool.getAuthenticatedMember()
 
         # ajax_category_expand is included in the form if this form submission
         # is an asynchronous one triggered by a category being expanded.
@@ -779,6 +796,7 @@ class BikaListingView(BrowserView):
             # - get nice formatted category contents (tr rows only)
             return self.rendered_items()
 
+        self.before_render()
         if self.request.get('table_only', '') == self.form_id \
             or self.request.get('rows_only', '') == self.form_id:
             return self.contents_table(table_only=self.form_id)
@@ -793,7 +811,7 @@ class BikaListingView(BrowserView):
         items are always expanded.
 
         :param items: A list of items returned from self.folderitems().
-        :return: a list of strings, self.categories contains the complete list.
+        :returns: a list of strings, self.categories contains the complete list.
         """
         cats = []
         for item in items:
@@ -812,7 +830,7 @@ class BikaListingView(BrowserView):
         batch total.
 
         :param items: A list of items returned from self.folderitems().
-        :return: a list of AnalysisCategory instances.
+        :returns: a list of AnalysisCategory instances.
         """
         return []
 
@@ -849,6 +867,8 @@ class BikaListingView(BrowserView):
         :classic: if True, the old way folderitems works will be executed. This
         function is mainly used to mantain the integrity with the old version.
         """
+        # Getting a security manager instance for the current reques
+        self.security_manager = getSecurityManager()
         # If the classic is True,, use the old way.
         if classic:
             return self._folderitems(full_objects)
@@ -918,6 +938,7 @@ class BikaListingView(BrowserView):
                 state_class += "state-%s " % states.get(w_id, '')
             # Building the dictionary with basic items
             results_dict = dict(
+                # obj can be an object or a brain!!
                 obj=obj,
                 uid=obj.UID,
                 url=obj.getURL(),
@@ -942,6 +963,7 @@ class BikaListingView(BrowserView):
                 before={},  # { before : "<a href=..>" }
                 after={},
                 replace={},
+                choices={},
             )
             # Getting the state title, if the review_state doesn't have a title
             # use the title of the first workflow found for the object
@@ -1355,7 +1377,7 @@ class BikaListingView(BrowserView):
         """
         This function creates an instance of BikaListingFilterBar if the
         class has not created one yet.
-        :return: a BikaListingFilterBar instance
+        :returns: a BikaListingFilterBar instance
         """
         self._advfilterbar = self._advfilterbar if self._advfilterbar else \
             BikaListingFilterBar(context=self.context, request=self.request)
@@ -1385,7 +1407,7 @@ class BikaListingView(BrowserView):
         """
         This function calls the filter bar get_filter_bar_dict
         from the filterbar object in order to obtain the filter values.
-        :return: a dictionary
+        :returns: a dictionary
         """
         return self.getFilterBar().get_filter_bar_dict()
 
@@ -1397,7 +1419,7 @@ class BikaListingView(BrowserView):
         This function should be only used for those fields without
         representation as an index in the catalog.
         :item: The item to check.
-        :return: boolean
+        :returns: boolean
         """
         if self.getFilterBar():
             return self.getFilterBar().filter_bar_check_item(item)
@@ -1441,7 +1463,7 @@ class BikaListingTable(tableview.Table):
         :param kwargs: all other keyword args are set as attributes of
                        self and self.bika_listing, for injecting attributes
                        that templates require.
-        :return: rendered HTML text
+        :returns: rendered HTML text
         """
         self.cat = cat
         for key,val in kwargs.items():

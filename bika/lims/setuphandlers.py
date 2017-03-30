@@ -493,92 +493,6 @@ class BikaGenerator:
         zc_extras.index_type = 'Okapi BM25 Rank'
         zc_extras.lexicon_id = 'Lexicon'
 
-        # bika_analysis_catalog
-
-        bac = getToolByName(portal, 'bika_analysis_catalog', None)
-        if bac == None:
-            logger.warning('Could not find the bika_analysis_catalog tool.')
-            return
-
-        try:
-            bac.manage_addProduct['ZCTextIndex'].manage_addLexicon('Lexicon', 'Lexicon', elem)
-        except:
-            logger.warning('Could not add ZCTextIndex to bika_analysis_catalog')
-            pass
-
-        at = getToolByName(portal, 'archetype_tool')
-        at.setCatalogsByType('Analysis', ['bika_analysis_catalog'])
-        at.setCatalogsByType('ReferenceAnalysis', ['bika_analysis_catalog'])
-        at.setCatalogsByType('DuplicateAnalysis', ['bika_analysis_catalog'])
-
-        addIndex(bac, 'path', 'ExtendedPathIndex', ('getPhysicalPath'))
-        addIndex(bac, 'allowedRolesAndUsers', 'KeywordIndex')
-        addIndex(bac, 'UID', 'FieldIndex')
-        addIndex(bac, 'Title', 'FieldIndex')
-        addIndex(bac, 'Description', 'ZCTextIndex', zc_extras)
-        addIndex(bac, 'id', 'FieldIndex')
-        addIndex(bac, 'Type', 'FieldIndex')
-        addIndex(bac, 'portal_type', 'FieldIndex')
-        addIndex(bac, 'created', 'DateIndex')
-        addIndex(bac, 'Creator', 'FieldIndex')
-        addIndex(bac, 'title', 'FieldIndex', 'Title')
-        addIndex(bac, 'sortable_title', 'FieldIndex')
-        addIndex(bac, 'description', 'FieldIndex', 'Description')
-        addIndex(bac, 'review_state', 'FieldIndex')
-        addIndex(bac, 'worksheetanalysis_review_state', 'FieldIndex')
-        addIndex(bac, 'cancellation_state', 'FieldIndex')
-        addIndex(bac, 'getDepartmentUID', 'KeywordIndex')
-
-        addIndex(bac, 'getDueDate', 'DateIndex')
-        addIndex(bac, 'getDateSampled', 'DateIndex')
-        addIndex(bac, 'getDateReceived', 'DateIndex')
-        addIndex(bac, 'getResultCaptureDate', 'DateIndex')
-        addIndex(bac, 'getDateAnalysisPublished', 'DateIndex')
-
-        addIndex(bac, 'getClientUID', 'FieldIndex')
-        addIndex(bac, 'getAnalyst', 'FieldIndex')
-        addIndex(bac, 'getClientTitle', 'FieldIndex')
-        addIndex(bac, 'getRequestID', 'FieldIndex')
-        addIndex(bac, 'getClientOrderNumber', 'FieldIndex')
-        addIndex(bac, 'getKeyword', 'FieldIndex')
-        addIndex(bac, 'getServiceTitle', 'FieldIndex')
-        addIndex(bac, 'getServiceUID', 'FieldIndex')
-        addIndex(bac, 'getCategoryUID', 'FieldIndex')
-        addIndex(bac, 'getCategoryTitle', 'FieldIndex')
-        addIndex(bac, 'getPointOfCapture', 'FieldIndex')
-        addIndex(bac, 'getDateReceived', 'DateIndex')
-        addIndex(bac, 'getResultCaptureDate', 'DateIndex')
-        addIndex(bac, 'getSampleTypeUID', 'FieldIndex')
-        addIndex(bac, 'getSamplePointUID', 'FieldIndex')
-        addIndex(bac, 'getRawSamplePoints', 'KeywordsIndex')
-        addIndex(bac, 'getRawSampleTypes', 'KeywordIndex')
-        addIndex(bac, 'getRetested', 'FieldIndex')
-        addIndex(bac, 'getReferenceAnalysesGroupID', 'FieldIndex')
-        addIndex(bac, 'getMethodUID', 'FieldIndex')
-        addIndex(bac, 'getInstrumentUID', 'FieldIndex')
-        addIndex(bac, 'getAnalysisRequestUID', 'FieldIndex')
-        addIndex(bac, 'getBatchUID', 'FieldIndex')
-        addIndex(bac, 'getSampleConditionUID', 'FieldIndex')
-        addIndex(bac, 'getAnalysisRequestPrintStatus', 'FieldIndex')
-
-        addColumn(bac, 'path')
-        addColumn(bac, 'UID')
-        addColumn(bac, 'id')
-        addColumn(bac, 'Type')
-        addColumn(bac, 'portal_type')
-        addColumn(bac, 'getObjPositionInParent')
-        addColumn(bac, 'Title')
-        addColumn(bac, 'Description')
-        addColumn(bac, 'title')
-        addColumn(bac, 'sortable_title')
-        addColumn(bac, 'description')
-        addColumn(bac, 'review_state')
-        addColumn(bac, 'cancellation_state')
-        addColumn(bac, 'getRequestID')
-        addColumn(bac, 'getReferenceAnalysesGroupID')
-        addColumn(bac, 'getResultCaptureDate')
-        addColumn(bac, 'Priority')
-
         # bika_catalog
 
         bc = getToolByName(portal, 'bika_catalog', None)
@@ -598,7 +512,6 @@ class BikaGenerator:
         at.setCatalogsByType('SamplePartition', ['bika_catalog', 'portal_catalog'])
         at.setCatalogsByType('ReferenceSample', ['bika_catalog', 'portal_catalog'])
         at.setCatalogsByType('Report', ['bika_catalog', ])
-        at.setCatalogsByType('Worksheet', ['bika_catalog', 'portal_catalog'])
 
         addIndex(bc, 'path', 'ExtendedPathIndex', ('getPhysicalPath'))
         addIndex(bc, 'allowedRolesAndUsers', 'KeywordIndex')
@@ -627,6 +540,7 @@ class BikaGenerator:
         addIndex(bc, 'getAnalysisService', 'KeywordIndex')
         addIndex(bc, 'getAnalyst', 'FieldIndex')
         addIndex(bc, 'getAnalysts', 'KeywordIndex')
+        addIndex(bc, 'getAnalysesUIDs', 'KeywordIndex')
         addIndex(bc, 'BatchDate', 'DateIndex')
         addIndex(bc, 'getClientOrderNumber', 'FieldIndex')
         addIndex(bc, 'getClientReference', 'FieldIndex')
@@ -866,13 +780,12 @@ class BikaGenerator:
             logger.warning('Could not find the portal_catalog tool.')
             return
         addIndex(pc, 'Analyst', 'FieldIndex')
-        addIndex(pc, 'worksheettemplateUID', 'FieldIndex')
         addColumn(pc, 'Analyst')
         # TODO: Nmrl
         addColumn(pc, 'getProvince')
         addColumn(pc, 'getDistrict')
 
-        # CATALOG_ANALYSIS_REQUEST
+        # Setting up all LIMS catalogs defined in catalog folder
         setup_catalogs(portal, getCatalogDefinitions())
 
     def setupTopLevelFolders(self, context):
