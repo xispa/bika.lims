@@ -1,6 +1,4 @@
 import json
-from bika.lims.utils.sample import create_sample
-from bika.lims.workflow import doActionFor
 import plone
 import datetime
 from datetime import date
@@ -8,23 +6,21 @@ from bika.lims import bikaMessageFactory as _
 from bika.lims import logger
 from bika.lims.browser import BrowserView
 from bika.lims.browser.analysisrequest import AnalysisRequestViewView
-from bika.lims.browser.bika_listing import BikaListingView
 from bika.lims.content.analysisrequest import schema as AnalysisRequestSchema
 from bika.lims.controlpanel.bika_analysisservices import \
     AnalysisServicesView as ASV
-from bika.lims.interfaces import IAnalysisRequestAddView, ISample
-from bika.lims.utils import getHiddenAttributesForClass, dicts_to_dict
+from bika.lims.interfaces import IAnalysisRequestAddView
 from bika.lims.utils import t
-from bika.lims.utils import tmpID
 from bika.lims.utils.analysisrequest import create_analysisrequest as crar
-from magnitude import mg
 from plone.app.layout.globals.interfaces import IViewView
 from Products.Archetypes import PloneMessageFactory as PMF
 from Products.CMFCore.utils import getToolByName
-from Products.CMFPlone.utils import _createObjectByType, safe_unicode
+from Products.CMFPlone.utils import safe_unicode
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
+from bika.lims.catalog import CATALOG_ANALYSIS_REQUEST_LISTING
 from zope.component import getAdapter
 from zope.interface import implements
+import traceback
 
 
 class AnalysisServicesView(ASV):
@@ -223,6 +219,8 @@ class AnalysisRequestAddView(AnalysisRequestViewView):
     def __call__(self):
         self.request.set('disable_border', 1)
         self.ShowPrices = self.context.bika_setup.getShowPrices()
+        self.analysisrequest_catalog =\
+            getToolByName(self.context, CATALOG_ANALYSIS_REQUEST_LISTING)
         if 'ajax_category_expand' in self.request.keys():
             cat = self.request.get('cat')
             asv = AnalysisServicesView(self.context,
@@ -238,19 +236,24 @@ class AnalysisRequestAddView(AnalysisRequestViewView):
         specs = {}
         copy_from = self.request.get('copy_from', "")
         if not copy_from:
-            return {}
-        uids =  copy_from.split(",")
-
+            return json.dumps(specs)
+        uids = copy_from.split(",")
+        proxies = self.analysisrequest_catalog(UID=uids)
+        if not proxies:
+            logger.warning(
+                'No object found for UIDs {0} while copying specs'
+                .format(copy_from))
+            return json.dumps(specs)
         n = 0
-        for uid in uids:
-            proxies = self.bika_catalog(UID=uid)
-            rr = proxies[0].getObject().getResultsRange()
+        for proxie in proxies:
+            res_range = proxie.getObject().getResultsRange()
             new_rr = []
-            for i, r in enumerate(rr):
-                s_uid = self.bika_setup_catalog(portal_type='AnalysisService',
-                                              getKeyword=r['keyword'])[0].UID
-                r['uid'] = s_uid
-                new_rr.append(r)
+            for i, rr in enumerate(res_range):
+                s_uid = self.bika_setup_catalog(
+                    portal_type='AnalysisService',
+                    getKeyword=rr['keyword'])[0].UID
+                rr['uid'] = s_uid
+                new_rr.append(rr)
             specs[n] = new_rr
             n += 1
         return json.dumps(specs)
@@ -420,7 +423,18 @@ class ajaxAnalysisRequestSubmit():
             # checking if sampling date is not future
             if state.get('SamplingDate', ''):
                 samplingdate = state.get('SamplingDate', '')
-                samp_date=datetime.datetime.strptime(samplingdate, "%Y-%m-%d %H:%M")
+                try:
+                    samp_date = datetime.datetime.strptime(
+                        samplingdate, "%Y-%m-%d %H:%M")
+                except ValueError:
+                    print traceback.format_exc()
+                    msg =\
+                        "Bad time formatting: Getting '{}' but expecting an"\
+                        " string with '%Y-%m-%d %H:%M' format."\
+                        .format(samplingdate)
+                    logger.error(msg)
+                    ajax_form_error(self.errors, arnum=arnum, message=msg)
+                    continue
                 now = datetime.datetime.now()
                 if now < samp_date:
                     msg = t(_("Sampling Date can't be future"))

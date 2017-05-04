@@ -20,6 +20,7 @@ from zope.component import adapts
 from zope.interface import implementer
 from zope.interface import implements
 from zope.interface import Interface
+import traceback
 
 
 def skip(instance, action, peek=False, unskip=False):
@@ -127,7 +128,11 @@ def getCurrentState(obj, stateflowid):
     wf = getToolByName(obj, 'portal_workflow')
     return wf.getInfoFor(obj, stateflowid, '')
 
-def getTransitionDate(obj, action_id):
+def getTransitionDate(obj, action_id, not_as_string=False):
+    """
+    Returns date of action for object. Sometimes we need this date in Datetime
+    format and that's why added not_as_string param.
+    """
     workflow = getToolByName(obj, 'portal_workflow')
     try:
         # https://jira.bikalabs.com/browse/LIMS-2242:
@@ -142,6 +147,8 @@ def getTransitionDate(obj, action_id):
     review_history.reverse()
     for event in review_history:
         if event['action'] == action_id:
+            if not_as_string:
+                return event['time']
             value = ulocalized_time(event['time'], long_format=True,
                                     time_only=False, context=obj)
             return value
@@ -228,7 +235,14 @@ def SamplePrepWorkflowChain(ob, wftool):
     """
     # use catalog to retrieve review_state: getInfoFor causes recursion loop
     chain = list(ToolWorkflowChain(ob, wftool))
-    bc = getToolByName(ob, 'bika_catalog')
+    try:
+        bc = getToolByName(ob, 'bika_catalog')
+    except AttributeError:
+        logger.error(traceback.format_exc())
+        logger.error(
+            "Error getting 'bika_catalog' using 'getToolByName' with '{0}'"
+            " as context.".format(ob))
+        return chain
     proxies = bc(UID=ob.UID())
     if not proxies or proxies[0].review_state != 'sample_prep':
         return chain

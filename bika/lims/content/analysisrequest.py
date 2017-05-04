@@ -1474,18 +1474,7 @@ schema = BikaSchema.copy() + Schema((
         default='',
         widget=ComputedWidget(visible=False,),
     ),
-    ComputedField(
-        'DateVerified',
-        expression='here.getDateVerified()',
-        default='',
-        widget=ComputedWidget(visible=False,),
-    ),
-    ComputedField(
-        'DatePublished',
-        expression='here.getDatePublished()',
-        default='',
-        widget=ComputedWidget(visible=False,),
-    ),
+
     ComputedField(
         'Priority',
         searchable=True,
@@ -1807,6 +1796,12 @@ class AnalysisRequest(BaseFolder):
         """ Return the Request ID as title """
         return self.getId()
 
+    def sortable_title(self):
+        """
+        Some lists expects this index
+        """
+        return self.getId()
+
     def Description(self):
         """ Return searchable data as Description """
         descr = " ".join((self.getId(), self.aq_parent.Title()))
@@ -1888,6 +1883,14 @@ class AnalysisRequest(BaseFolder):
             if val not in value:
                 value.append(val)
         return value
+
+    def getDistrict(self):
+        client = self.aq_parent
+        return client.getDistrict()
+
+    def getProvince(self):
+        client = self.aq_parent
+        return client.getProvince()
 
     def getBatch(self):
         # The parent type may be "Batch" during ar_add.
@@ -2004,16 +2007,22 @@ class AnalysisRequest(BaseFolder):
             review_state = workflow.getInfoFor(analysis, 'review_state', '')
             if review_state == 'published':
                 continue
-            calculation = analysis.getService().getCalculation()
+            service = analysis.getService()
+            # This situation can be met during analysis request creation
+            if service is None:
+                logger.warning(
+                    "No service for analysis '{}'".format(analysis.getId()))
+                calculation = None
+            else:
+                calculation = service.getCalculation()
             if not calculation or (
-                        calculation and not calculation.getDependentServices()):
+                    calculation and not calculation.getDependentServices()):
                 resultdate = analysis.getResultCaptureDate()
             duedate = analysis.getDueDate()
             # noinspection PyCallingNonCallable
             if (resultdate and resultdate > duedate) \
                     or (not resultdate and DateTime() > duedate):
                 return True
-
         return False
 
     def getPrinted(self):
@@ -2647,7 +2656,7 @@ class AnalysisRequest(BaseFolder):
         """
         Returns the transition date from the Analysis Request object
         """
-        return getTransitionDate(self, 'publish')
+        return getTransitionDate(self, 'publish', not_as_string=True)
 
     security.declarePublic('setSamplePoint')
 
@@ -3072,9 +3081,9 @@ class AnalysisRequest(BaseFolder):
 
     def getDateVerified(self):
         """
-        Returns the user id who has verified the analysis request.
+        Returns the date of verification as a DateTime object.
         """
-        return getTransitionDate(self, 'verify')
+        return getTransitionDate(self, 'verify', not_as_string=True)
 
     def _getCreatorFullName(self):
         """
@@ -3288,7 +3297,7 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         sd = sample.getSamplingDate()
         # noinspection PyCallingNonCallable
-        self.reindexObject(idxs=["review_state",  'getObjectWorkflowStates', ])
+        self.reindexObject()
         if sd and sd > DateTime():
             sample.future_dated = True
 
@@ -3297,7 +3306,7 @@ class AnalysisRequest(BaseFolder):
             return
         sample = self.getSample()
         sd = sample.getSamplingDate()
-        self.reindexObject(idxs=["review_state",  'getObjectWorkflowStates', ])
+        self.reindexObject()
         # noinspection PyCallingNonCallable
         if sd and sd > DateTime():
             sample.future_dated = True
