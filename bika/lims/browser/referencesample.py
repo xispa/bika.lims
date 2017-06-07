@@ -81,7 +81,7 @@ class ReferenceAnalysesViewView(BrowserView):
         return self._analysesview
 
     def getReferenceSampleId(self):
-        return self.context.id;
+        return self.context.id
 
     def get_analyses_json(self):
         return self.get_analyses_view().get_analyses_json()
@@ -166,7 +166,7 @@ class ReferenceAnalysesView(AnalysesView):
                 .format(obj.getId))
         elif wss and len(wss) == 1:
             # TODO-performance: We are getting the object here...
-            ws = wss[0].getObject()
+            ws = wss[0].getSourceObject()
             item['Worksheet'] = ws.Title()
             anchor = '<a href="%s">%s</a>' % (ws.absolute_url(), ws.Title())
             item['replace']['Worksheet'] = anchor
@@ -174,11 +174,12 @@ class ReferenceAnalysesView(AnalysesView):
             logger.warn(
                 'More than one Worksheet found for ReferenceAnalysis {}'
                 .format(obj.getId))
-        self.addToJSON(obj, service, item)
+        service_uid = obj.getServiceUID
+        self.addToJSON(obj, service_uid, item)
         return item
 
     # TODO-catalog: memoize here?
-    def addToJSON(self, analysis, service, item):
+    def addToJSON(self, analysis, service_uid, item):
         """ Adds an analysis item to the self.anjson dict that will be used
             after the page is rendered to generate a QC Chart
         """
@@ -189,9 +190,8 @@ class ReferenceAnalysesView(AnalysesView):
         anrows = trows.get(qcid, [])
         anid = '%s.%s' % (item['getReferenceAnalysesGroupID'], item['id'])
         rr = parent.getResultsRangeDict()
-        uid = service.UID()
-        if uid in rr:
-            specs = rr.get(uid, None)
+        if service_uid in rr:
+            specs = rr.get(service_uid, None)
             try:
                 smin = float(specs.get('min', 0))
                 smax = float(specs.get('max', 0))
@@ -417,7 +417,7 @@ class ReferenceSamplesView(BikaListingView):
                 expirydate = DT2dt(exdate).replace(tzinfo=None)
                 if (datetime.today() > expirydate):
                     # Trigger expiration
-                    workflow.doActionFor(obj, 'expire')
+                    self.workflow.doActionFor(obj, 'expire')
                     item['review_state'] = 'expired'
                     item['obj'] = obj
 

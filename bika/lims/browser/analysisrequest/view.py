@@ -163,8 +163,10 @@ class AnalysisRequestViewView(BrowserView):
         ar_atts = self.context.getAttachment()
         analyses = self.context.getAnalyses(full_objects = True)
         for att in ar_atts:
-            file = att.getAttachmentFile()
-            fsize = file.getSize() if file else 0
+            file_obj = att.getAttachmentFile()
+            fsize = file_obj.get_size() if file_obj else 0
+            if isinstance(fsize, tuple):
+                fsize = 0
             if fsize < 1024:
                 fsize = '%s b' % fsize
             else:
@@ -173,8 +175,8 @@ class AnalysisRequestViewView(BrowserView):
                 'keywords': att.getAttachmentKeys(),
                 'analysis': '',
                 'size': fsize,
-                'name': file.filename,
-                'Icon': file.icon,
+                'name': file_obj.filename,
+                'Icon': file_obj.icon,
                 'type': att.getAttachmentType().Title() if att.getAttachmentType() else '',
                 'absolute_url': att.absolute_url(),
                 'UID': att.UID(),
@@ -183,8 +185,8 @@ class AnalysisRequestViewView(BrowserView):
         for analysis in analyses:
             an_atts = analysis.getAttachment()
             for att in an_atts:
-                file = att.getAttachmentFile()
-                fsize = file.getSize() if file else 0
+                file_obj = att.getAttachmentFile()
+                fsize = file_obj.get_size() if file_obj else 0
                 if fsize < 1024:
                     fsize = '%s b' % fsize
                 else:
@@ -193,8 +195,8 @@ class AnalysisRequestViewView(BrowserView):
                     'keywords': att.getAttachmentKeys(),
                     'analysis': analysis.Title(),
                     'size': fsize,
-                    'name': file.filename,
-                    'Icon': file.icon,
+                    'name': file_obj.filename,
+                    'Icon': file_obj.icon,
                     'type': att.getAttachmentType().Title() if att.getAttachmentType() else '',
                     'absolute_url': att.absolute_url(),
                     'UID': att.UID(),
@@ -312,10 +314,9 @@ class AnalysisRequestViewView(BrowserView):
         for analysis in bac(portal_type="Analysis",
                            getRequestID=self.context.RequestID):
             analysis = analysis.getObject()
-            service = analysis.getService()
-            res.append([service.getPointOfCapture(),
-                        service.getCategoryUID(),
-                        service.UID()])
+            res.append([analysis.getPointOfCapture(),
+                        analysis.getCategoryUID(),
+                        analysis.getServiceUID()])
         return res
 
     def getRestrictedCategories(self):
@@ -391,8 +392,7 @@ class AnalysisRequestViewView(BrowserView):
         for analysis in self.context.getAnalyses(full_objects=True):
             if analysis.review_state == 'not_requested':
                 continue
-            service = analysis.getService()
-            category_name = service.getCategoryTitle()
+            category_name = analysis.getCategoryTitle()
             if not category_name in cats:
                 cats[category_name] = {}
             cats[category_name][analysis.Title()] = analysis
@@ -473,10 +473,3 @@ class AnalysisRequestViewView(BrowserView):
                 'value': anchor
             }
         return custom
-
-    def getPriorityIcon(self):
-        priority = self.context.getPriority()
-        if priority:
-            icon = priority.getBigIcon()
-            if icon:
-                return '/'.join(icon.getPhysicalPath())
