@@ -92,6 +92,8 @@ def upgrade(tool):
     logger.info("Removing stale indexes...")
     bc = getToolByName(portal, 'bika_catalog', None)
     delIndexAndColumn(bc, 'getProfilesTitle')
+    # Add new indexes
+    addIndex(bc, 'getAnalysesUIDs', 'KeywordIndex')
 
     # Adding two columns for client data
     addColumnsForClient(portal)
@@ -368,11 +370,10 @@ def reflex_rules(portal):
     ntp.manage_changeProperties(MetaTypesNotToQuery=types)
 
     pc = getToolByName(portal, 'portal_catalog')
-    addIndex(pc, 'worksheettemplateUID', 'FieldIndex')
     addIndexAndColumn(pc, 'Analyst', 'FieldIndex')
 
     bsc = getToolByName(portal, 'bika_setup_catalog')
-    addIndex(bsc, 'getAvailableMethodsUIDs', 'KeywordIndex')
+    addIndex(bsc, 'getAvailableMethodUIDs', 'KeywordIndex')
     addIndex(bsc, 'getMethodUID', 'FieldIndex')
 
     bac = getToolByName(portal, 'bika_analysis_catalog')

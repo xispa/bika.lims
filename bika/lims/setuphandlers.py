@@ -17,8 +17,7 @@ from bika.lims.utils import t, tmpID
 from bika.lims import logger
 from bika.lims.config import *
 from bika.lims.permissions import *
-from bika.lims.interfaces \
-        import IHaveNoBreadCrumbs, IARImportFolder, IARPriorities
+from bika.lims.interfaces import IHaveNoBreadCrumbs, IARImportFolder
 from zope.event import notify
 from zope.interface import alsoProvides
 from Products.CMFEditions.Permissions import ApplyVersionControl
@@ -77,7 +76,6 @@ class BikaGenerator:
         bika_setup = portal._getOb('bika_setup')
         for obj_id in ('bika_analysiscategories',
                        'bika_analysisservices',
-                       'bika_arpriorities',
                        'bika_attachmenttypes',
                        'bika_batchlabels',
                        'bika_calculations',
@@ -235,7 +233,6 @@ class BikaGenerator:
 
         mp(DispatchOrder, ['Manager', 'LabManager', 'LabClerk'], 1)
         mp(ManageARImport, ['Manager', 'LabManager', 'LabClerk'], 1)
-        mp(ManageARPriority, ['Manager', 'LabManager', 'LabClerk'], 1)
         mp(ManageAnalysisRequests, ['Manager', 'LabManager', 'LabClerk', 'Analyst', 'Sampler', 'Preserver', 'Owner', 'RegulatoryInspector', 'SamplingCoordinator'], 1)
         mp(ManageBika, ['Manager', 'LabManager'], 1)
         mp(ManageClients, ['Manager', 'LabManager', 'LabClerk'], 1)
@@ -493,92 +490,6 @@ class BikaGenerator:
         zc_extras.index_type = 'Okapi BM25 Rank'
         zc_extras.lexicon_id = 'Lexicon'
 
-        # bika_analysis_catalog
-
-        bac = getToolByName(portal, 'bika_analysis_catalog', None)
-        if bac == None:
-            logger.warning('Could not find the bika_analysis_catalog tool.')
-            return
-
-        try:
-            bac.manage_addProduct['ZCTextIndex'].manage_addLexicon('Lexicon', 'Lexicon', elem)
-        except:
-            logger.warning('Could not add ZCTextIndex to bika_analysis_catalog')
-            pass
-
-        at = getToolByName(portal, 'archetype_tool')
-        at.setCatalogsByType('Analysis', ['bika_analysis_catalog'])
-        at.setCatalogsByType('ReferenceAnalysis', ['bika_analysis_catalog'])
-        at.setCatalogsByType('DuplicateAnalysis', ['bika_analysis_catalog'])
-
-        addIndex(bac, 'path', 'ExtendedPathIndex', ('getPhysicalPath'))
-        addIndex(bac, 'allowedRolesAndUsers', 'KeywordIndex')
-        addIndex(bac, 'UID', 'FieldIndex')
-        addIndex(bac, 'Title', 'FieldIndex')
-        addIndex(bac, 'Description', 'ZCTextIndex', zc_extras)
-        addIndex(bac, 'id', 'FieldIndex')
-        addIndex(bac, 'Type', 'FieldIndex')
-        addIndex(bac, 'portal_type', 'FieldIndex')
-        addIndex(bac, 'created', 'DateIndex')
-        addIndex(bac, 'Creator', 'FieldIndex')
-        addIndex(bac, 'title', 'FieldIndex', 'Title')
-        addIndex(bac, 'sortable_title', 'FieldIndex')
-        addIndex(bac, 'description', 'FieldIndex', 'Description')
-        addIndex(bac, 'review_state', 'FieldIndex')
-        addIndex(bac, 'worksheetanalysis_review_state', 'FieldIndex')
-        addIndex(bac, 'cancellation_state', 'FieldIndex')
-        addIndex(bac, 'getDepartmentUID', 'KeywordIndex')
-
-        addIndex(bac, 'getDueDate', 'DateIndex')
-        addIndex(bac, 'getDateSampled', 'DateIndex')
-        addIndex(bac, 'getDateReceived', 'DateIndex')
-        addIndex(bac, 'getResultCaptureDate', 'DateIndex')
-        addIndex(bac, 'getDateAnalysisPublished', 'DateIndex')
-
-        addIndex(bac, 'getClientUID', 'FieldIndex')
-        addIndex(bac, 'getAnalyst', 'FieldIndex')
-        addIndex(bac, 'getClientTitle', 'FieldIndex')
-        addIndex(bac, 'getRequestID', 'FieldIndex')
-        addIndex(bac, 'getClientOrderNumber', 'FieldIndex')
-        addIndex(bac, 'getKeyword', 'FieldIndex')
-        addIndex(bac, 'getServiceTitle', 'FieldIndex')
-        addIndex(bac, 'getServiceUID', 'FieldIndex')
-        addIndex(bac, 'getCategoryUID', 'FieldIndex')
-        addIndex(bac, 'getCategoryTitle', 'FieldIndex')
-        addIndex(bac, 'getPointOfCapture', 'FieldIndex')
-        addIndex(bac, 'getDateReceived', 'DateIndex')
-        addIndex(bac, 'getResultCaptureDate', 'DateIndex')
-        addIndex(bac, 'getSampleTypeUID', 'FieldIndex')
-        addIndex(bac, 'getSamplePointUID', 'FieldIndex')
-        addIndex(bac, 'getRawSamplePoints', 'KeywordsIndex')
-        addIndex(bac, 'getRawSampleTypes', 'KeywordIndex')
-        addIndex(bac, 'getRetested', 'FieldIndex')
-        addIndex(bac, 'getReferenceAnalysesGroupID', 'FieldIndex')
-        addIndex(bac, 'getMethodUID', 'FieldIndex')
-        addIndex(bac, 'getInstrumentUID', 'FieldIndex')
-        addIndex(bac, 'getAnalysisRequestUID', 'FieldIndex')
-        addIndex(bac, 'getBatchUID', 'FieldIndex')
-        addIndex(bac, 'getSampleConditionUID', 'FieldIndex')
-        addIndex(bac, 'getAnalysisRequestPrintStatus', 'FieldIndex')
-
-        addColumn(bac, 'path')
-        addColumn(bac, 'UID')
-        addColumn(bac, 'id')
-        addColumn(bac, 'Type')
-        addColumn(bac, 'portal_type')
-        addColumn(bac, 'getObjPositionInParent')
-        addColumn(bac, 'Title')
-        addColumn(bac, 'Description')
-        addColumn(bac, 'title')
-        addColumn(bac, 'sortable_title')
-        addColumn(bac, 'description')
-        addColumn(bac, 'review_state')
-        addColumn(bac, 'cancellation_state')
-        addColumn(bac, 'getRequestID')
-        addColumn(bac, 'getReferenceAnalysesGroupID')
-        addColumn(bac, 'getResultCaptureDate')
-        addColumn(bac, 'Priority')
-
         # bika_catalog
 
         bc = getToolByName(portal, 'bika_catalog', None)
@@ -598,7 +509,6 @@ class BikaGenerator:
         at.setCatalogsByType('SamplePartition', ['bika_catalog', 'portal_catalog'])
         at.setCatalogsByType('ReferenceSample', ['bika_catalog', 'portal_catalog'])
         at.setCatalogsByType('Report', ['bika_catalog', ])
-        at.setCatalogsByType('Worksheet', ['bika_catalog', 'portal_catalog'])
 
         addIndex(bc, 'path', 'ExtendedPathIndex', ('getPhysicalPath'))
         addIndex(bc, 'allowedRolesAndUsers', 'KeywordIndex')
@@ -623,10 +533,10 @@ class BikaGenerator:
         addIndex(bc, 'Identifiers', 'KeywordIndex')
 
         addIndex(bc, 'getDepartmentUIDs', 'KeywordIndex')
-        addIndex(bc, 'getAnalysisCategory', 'KeywordIndex')
         addIndex(bc, 'getAnalysisService', 'KeywordIndex')
         addIndex(bc, 'getAnalyst', 'FieldIndex')
         addIndex(bc, 'getAnalysts', 'KeywordIndex')
+        addIndex(bc, 'getAnalysesUIDs', 'KeywordIndex')
         addIndex(bc, 'BatchDate', 'DateIndex')
         addIndex(bc, 'getClientOrderNumber', 'FieldIndex')
         addIndex(bc, 'getClientReference', 'FieldIndex')
@@ -656,13 +566,12 @@ class BikaGenerator:
         addIndex(bc, 'getSampleTypeUID', 'FieldIndex')
         addIndex(bc, 'getSampleUID', 'FieldIndex')
         addIndex(bc, 'getSamplingDate', 'DateIndex')
-        addIndex(bc, 'getServiceTitle', 'FieldIndex')
         addIndex(bc, 'getWorksheetTemplateTitle', 'FieldIndex')
-        addIndex(bc, 'Priority', 'FieldIndex')
         addIndex(bc, 'BatchUID', 'FieldIndex')
         addColumn(bc, 'path')
         addColumn(bc, 'UID')
         addColumn(bc, 'id')
+        addColumn(bc, 'getId')
         addColumn(bc, 'Type')
         addColumn(bc, 'portal_type')
         addColumn(bc, 'creator')
@@ -683,7 +592,6 @@ class BikaGenerator:
         addColumn(bc, 'getClientTitle')
         addColumn(bc, 'getSamplePointTitle')
         addColumn(bc, 'getSampleTypeTitle')
-        addColumn(bc, 'getAnalysisCategory')
         addColumn(bc, 'getAnalysisService')
         addColumn(bc, 'getDatePublished')
         addColumn(bc, 'getDateReceived')
@@ -723,6 +631,7 @@ class BikaGenerator:
         at.setCatalogsByType('Method', ['bika_setup_catalog', 'portal_catalog'])
         at.setCatalogsByType('Multifile', ['bika_setup_catalog'])
         at.setCatalogsByType('AttachmentType', ['bika_setup_catalog', ])
+        at.setCatalogsByType('Attachment', [])
         at.setCatalogsByType('Calculation', ['bika_setup_catalog', 'portal_catalog'])
         at.setCatalogsByType('AnalysisProfile', ['bika_setup_catalog', 'portal_catalog'])
         at.setCatalogsByType('ARTemplate', ['bika_setup_catalog', 'portal_catalog'])
@@ -737,7 +646,6 @@ class BikaGenerator:
         at.setCatalogsByType('Unit', ['bika_setup_catalog', ])
         at.setCatalogsByType('WorksheetTemplate', ['bika_setup_catalog', 'portal_catalog'])
         at.setCatalogsByType('BatchLabel', ['bika_setup_catalog', ])
-        at.setCatalogsByType('ARPriority', ['bika_setup_catalog', ])
 
         addIndex(bsc, 'path', 'ExtendedPathIndex', ('getPhysicalPath'))
         addIndex(bsc, 'allowedRolesAndUsers', 'KeywordIndex')
@@ -764,9 +672,6 @@ class BikaGenerator:
 
         addIndex(bsc, 'getAccredited', 'FieldIndex')
         addIndex(bsc, 'getAnalyst', 'FieldIndex')
-        addIndex(bsc, 'getInstrumentType', 'FieldIndex')
-        addIndex(bsc, 'getInstrumentTypeName', 'FieldIndex')
-        addIndex(bsc, 'getInstrumentLocationName', 'FieldIndex')
         addIndex(bsc, 'getBlank', 'FieldIndex')
         addIndex(bsc, 'getCalculationTitle', 'FieldIndex')
         addIndex(bsc, 'getCalculationUID', 'FieldIndex')
@@ -775,16 +680,23 @@ class BikaGenerator:
         addIndex(bsc, 'getCategoryUID', 'FieldIndex')
         addIndex(bsc, 'getClientUID', 'FieldIndex')
         addIndex(bsc, 'getDepartmentTitle', 'FieldIndex')
+        addIndex(bsc, 'getDepartmentUID', 'FieldIndex')
+        addIndex(bsc, 'getDocumentID', 'FieldIndex')
         addIndex(bsc, 'getDuplicateVariation', 'FieldIndex')
         addIndex(bsc, 'getFormula', 'FieldIndex')
         addIndex(bsc, 'getFullname', 'FieldIndex')
         addIndex(bsc, 'getHazardous', 'FieldIndex')
+        addIndex(bsc, 'getInstrumentLocationName', 'FieldIndex')
         addIndex(bsc, 'getInstrumentTitle', 'FieldIndex')
+        addIndex(bsc, 'getInstrumentType', 'FieldIndex')
+        addIndex(bsc, 'getInstrumentTypeName', 'FieldIndex')
         addIndex(bsc, 'getKeyword', 'FieldIndex')
+        addIndex(bsc, 'getManagerEmail', 'FieldIndex')
         addIndex(bsc, 'getManagerName', 'FieldIndex')
         addIndex(bsc, 'getManagerPhone', 'FieldIndex')
-        addIndex(bsc, 'getManagerEmail', 'FieldIndex')
         addIndex(bsc, 'getMaxTimeAllowed', 'FieldIndex')
+        addIndex(bsc, 'getMethodID', 'FieldIndex')
+        addIndex(bsc, 'getAvailableMethodUIDs', 'KeywordIndex')
         addIndex(bsc, 'getModel', 'FieldIndex')
         addIndex(bsc, 'getName', 'FieldIndex')
         addIndex(bsc, 'getPointOfCapture', 'FieldIndex')
@@ -793,17 +705,13 @@ class BikaGenerator:
         addIndex(bsc, 'getSamplePointUID', 'FieldIndex')
         addIndex(bsc, 'getSampleTypeTitle', 'KeywordIndex')
         addIndex(bsc, 'getSampleTypeUID', 'FieldIndex')
-        addIndex(bsc, 'getServiceTitle', 'FieldIndex')
         addIndex(bsc, 'getServiceUID', 'FieldIndex')
+        addIndex(bsc, 'getServiceUIDs', 'KeywordIndex')
         addIndex(bsc, 'getTotalPrice', 'FieldIndex')
         addIndex(bsc, 'getUnit', 'FieldIndex')
         addIndex(bsc, 'getVATAmount', 'FieldIndex')
         addIndex(bsc, 'getVolume', 'FieldIndex')
         addIndex(bsc, 'sortKey', 'FieldIndex')
-        addIndex(bsc, 'getMethodID', 'FieldIndex')
-        addIndex(bsc, 'getDocumentID', 'FieldIndex')
-        addIndex(bsc, 'getAvailableMethodsUIDs', 'KeywordIndex')
-        addIndex(bsc, 'getMethodUIDs', 'KeywordIndex')
 
         addColumn(bsc, 'path')
         addColumn(bsc, 'UID')
@@ -853,7 +761,6 @@ class BikaGenerator:
         addColumn(bsc, 'getSamplePointUID')
         addColumn(bsc, 'getSampleTypeTitle')
         addColumn(bsc, 'getSampleTypeUID')
-        addColumn(bsc, 'getServiceTitle')
         addColumn(bsc, 'getServiceUID')
         addColumn(bsc, 'getTotalPrice')
         addColumn(bsc, 'getUnit')
@@ -866,13 +773,12 @@ class BikaGenerator:
             logger.warning('Could not find the portal_catalog tool.')
             return
         addIndex(pc, 'Analyst', 'FieldIndex')
-        addIndex(pc, 'worksheettemplateUID', 'FieldIndex')
         addColumn(pc, 'Analyst')
         # TODO: Nmrl
         addColumn(pc, 'getProvince')
         addColumn(pc, 'getDistrict')
 
-        # CATALOG_ANALYSIS_REQUEST
+        # Setting up all LIMS catalogs defined in catalog folder
         setup_catalogs(portal, getCatalogDefinitions())
 
     def setupTopLevelFolders(self, context):

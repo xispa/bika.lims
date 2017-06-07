@@ -18,10 +18,11 @@ from bika.lims.utils import isnumber
 from bika.lims.utils import getUsers
 from bika.lims.utils import tmpID
 from bika.lims.utils.analysis import duplicateAnalysis
-from bika.lims.utils import changeWorkflowState
 from bika.lims.idserver import renameAfterCreation
 from bika.lims import logger
 from bika.lims.workflow import doActionFor
+from bika.lims.catalog import CATALOG_ANALYSIS_LISTING
+from bika.lims.catalog import CATALOG_WORKSHEET_LISTING
 import sys
 
 schema = BikaSchema.copy() + Schema((
@@ -66,10 +67,12 @@ class ReflexRule(BaseContent):
     schema = schema
     _at_rename_after_creation = True
 
+    @security.private
     def _renameAfterCreation(self, check_auto_id=False):
         from bika.lims.idserver import renameAfterCreation
         renameAfterCreation(self)
 
+    @security.private
     def _getAvailableMethodsDisplayList(self):
         """ Returns a DisplayList with the available Methods
             registered in Bika-Setup. Only active Methods are fetched.
@@ -80,6 +83,7 @@ class ReflexRule(BaseContent):
         items.sort(lambda x, y: cmp(x[1], y[1]))
         return DisplayList(list(items))
 
+    @security.private
     def _fetch_analysis_for_local_id(self, analysis, ans_cond):
         """
         This function returns an analysis when the derivative IDs conditions
@@ -91,15 +95,18 @@ class ReflexRule(BaseContent):
         # Getting the first reflexed analysis from the chain
         first_reflexed = analysis.getOriginalReflexedAnalysis()
         # Getting all reflexed analysis created due to this first analysis
-        derivatives = first_reflexed.getBackReferences(
-            'OriginalAnalysisReflectedAnalysis')
+        derivatives_brains = self.analyses_catalog(
+            getOriginalReflexedAnalysisUID=first_reflexed.UID()
+        )
         # From all the related reflexed analysis, return the one that matches
         # with the local id 'ans_cond'
-        for derivative in derivatives:
+        for derivative in derivatives_brains:
+            derivative = derivative.getObject()
             if derivative.getReflexRuleLocalID() == ans_cond:
                 return derivative
         return None
 
+    @security.private
     def _areConditionsMet(self, action_set, analysis, forceuid=False):
         """
         This function returns a boolean as True if the conditions in the
@@ -133,14 +140,13 @@ class ReflexRule(BaseContent):
             'trigger': 'submit'}
         :forceuid: a boolean used to get the analysis service's UID from the
         analysis even if the analysis has been reflected and has a local_id.
-        :return: a Boolean.
+        :returns: a Boolean.
         """
         conditions = action_set.get('conditions', [])
-        service = analysis.getService()
         eval_str = ''
         # Getting the analysis local id or its uid instead
         alocalid = analysis.getReflexRuleLocalID() if \
-            analysis.getIsReflexAnalysis() and not forceuid else service.UID()
+            analysis.getIsReflexAnalysis() and not forceuid else analysis.getServiceUID()
         # Getting the local ids (or analysis service uid) from the condition
         # with the same local id (or analysis service uid) as the analysis
         # attribute
@@ -212,7 +218,7 @@ class ReflexRule(BaseContent):
             ans_related_to_set.append(curranalysis)
             # the value of the analysis' result as string
             result = curranalysis.getResult()
-            if len(service.getResultOptions()) > 0:
+            if len(analysis.getResultOptions()) > 0:
                 # Discrete result as expacted value
                 exp_val = condition.get('discreteresult', '')
             else:
@@ -244,6 +250,7 @@ class ReflexRule(BaseContent):
         else:
             return False
 
+    @security.public
     def getActionReflexRules(self, analysis, wf_action):
         """
         This function returns a list of dictionaries with the rules to be done
@@ -252,11 +259,13 @@ class ReflexRule(BaseContent):
             rules for.
         :wf_action: it is the workflow action that the analysis is doing, we
             have to act in consideration of the action_set 'trigger' variable
-        :return: [{'action': 'duplicate', ...}, {,}, ...]
+        :returns: [{'action': 'duplicate', ...}, {,}, ...]
         """
+        # Setting up the analyses catalog
+        self.analyses_catalog = getToolByName(self, CATALOG_ANALYSIS_LISTING)
         # Getting the action sets, those that contain action rows
         action_sets = self.getReflexRules()
-        l = []
+        rules_list = []
         condition = False
         for action_set in action_sets:
             # Validate the trigger
@@ -272,8 +281,8 @@ class ReflexRule(BaseContent):
                         # action later.
                         act['rulenumber'] = action_set.get('rulenumber', '0')
                         act['rulename'] = self.Title()
-                        l.append(act)
-        return l
+                        rules_list.append(act)
+        return rules_list
 
 atapi.registerType(ReflexRule, PROJECTNAME)
 
@@ -318,8 +327,6 @@ def doActionToAnalysis(base, action):
             analysis = duplicateAnalysis(base)
             analysis.setResult(result_value)
             doActionFor(analysis, 'submit')
-            #changeWorkflowState(analysis,
-            #                    "bika_analysis_workflow", "to_be_verified")
     else:
         logger.error(
             "Not known Reflex Rule action %s." % (action.get('action', '')))
@@ -343,12 +350,12 @@ def doActionToAnalysis(base, action):
     rule_name = action.get('rulename', '')
     base_remark = "Reflex rule number %s of '%s' applied at %s." % \
         (rule_num, rule_name, time)
-    base_remark = base.getRemarks() + base_remark + '<br/> '
+    base_remark = base.getRemarks() + base_remark + '||'
     base.setRemarks(base_remark)
     # Setting the remarks to new analysis
     analysis_remark = "%s due to reflex rule number %s of '%s' at %s" % \
         (action_rule_name, rule_num, rule_name, time)
-    analysis_remark = analysis.getRemarks() + analysis_remark + '<br/> '
+    analysis_remark = analysis.getRemarks() + analysis_remark + '||'
     analysis.setRemarks(analysis_remark)
     return analysis
 
@@ -425,6 +432,7 @@ def doWorksheetLogic(base, action, analysis):
     triggered.
     """
     otherWS = action.get('otherWS', False)
+    worksheet_catalog = getToolByName(base, CATALOG_WORKSHEET_LISTING)
     if otherWS in ['to_another', 'create_another']:
         # Adds the new analysis inside same worksheet as the previous analysis.
         # Checking if the actions defines an analyst
@@ -432,9 +440,7 @@ def doWorksheetLogic(base, action, analysis):
         # Checking if the action defines a worksheet template
         worksheettemplate = action.get('worksheettemplate', '')
         # Creating the query
-        pc = getToolByName(base, 'portal_catalog')
         contentFilter = {
-            'portal_type': 'Worksheet',
             'review_state': 'open',
             'sort_on': 'created',
             'sort_order': 'reverse'}
@@ -445,15 +451,15 @@ def doWorksheetLogic(base, action, analysis):
             contentFilter['Analyst'] = new_analyst
         if worksheettemplate:
             # Adding the worksheettemplate filter
-            contentFilter['worksheettemplateUID'] = worksheettemplate
+            contentFilter['getWorksheetTemplateUID'] = worksheettemplate
         # Run the filter
-        wss = pc(contentFilter)
+        wss = worksheet_catalog(contentFilter)
         # 'repeat' actions takes advantatge of the 'retract' workflow action.
         # the retract process assigns the new analysis to the same worksheet
         # as the base analysis, so we need to desassign it now.
-        ws = analysis.getBackReferences("WorksheetAnalysis")
+        ws = analysis.getWorksheet()
         if ws:
-            ws[0].removeAnalysis(analysis)
+            ws.removeAnalysis(analysis)
         # If worksheet found and option 2
         if len(wss) > 0 and otherWS == 'to_another':
             # Add the new analysis to the worksheet
@@ -467,9 +473,9 @@ def doWorksheetLogic(base, action, analysis):
             # Getting the original analysis to which the rule applies
             previous_analysis = analysis.getReflexAnalysisOf()
             # Getting the worksheet of the analysis
-            prev_ws = previous_analysis.getBackReferences("WorksheetAnalysis")
+            prev_ws = previous_analysis.getWorksheet()
             # Getting the analyst from the worksheet
-            prev_analyst = prev_ws[0].getAnalyst() if prev_ws else ''
+            prev_analyst = prev_ws.getAnalyst() if prev_ws else ''
             # If the previous analysis belongs to a worksheet:
             if prev_analyst:
                 ws = _createWorksheet(base, worksheettemplate, prev_analyst)
@@ -485,18 +491,18 @@ def doWorksheetLogic(base, action, analysis):
 
     elif otherWS == 'current':
         # Getting the base's worksheet
-        wss = base.getBackReferences('WorksheetAnalysis')
-        if len(wss) > 0:
+        ws = base.getWorksheet()
+        if ws:
             # If the old analysis belongs to a worksheet, add the new
             # one to it
-            wss[0].addAnalysis(analysis)
+            ws.addAnalysis(analysis)
     # If option 1 selected and no ws found, no worksheet will be assigned to
     # the analysis.
     # If option 4 selected, no worksheet will be assigned to the analysis
     elif otherWS == 'no_ws':
-        ws = analysis.getBackReferences("WorksheetAnalysis")
+        ws = analysis.getWorksheet()
         if ws:
-            ws[0].removeAnalysis(analysis)
+            ws.removeAnalysis(analysis)
 
 
 def doReflexRuleAction(base, action_row):
@@ -512,4 +518,10 @@ def doReflexRuleAction(base, action_row):
         analysis = doActionToAnalysis(base, action)
         # Working with the worksheetlogic
         doWorksheetLogic(base, action, analysis)
+        # Reindexing both objects in order to fill its metacolumns with
+        # the changes.
+        # TODO: Sometimes, objects are reindexed. Could it be that they
+        # are reindexed in some workflow step that some of them don't do?
+        base.reindexObject()
+        analysis.reindexObject()
     return True

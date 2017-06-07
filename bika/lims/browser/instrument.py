@@ -405,15 +405,19 @@ class InstrumentReferenceAnalysesView(AnalysesView):
 
         analyses = self.context.getReferenceAnalyses()
         asuids = [an.UID() for an in analyses]
-        self.catalog = 'bika_analysis_catalog'
         self.contentFilter = {'UID': asuids}
         self.anjson = {}
 
+    # TODO-performance: Use folderitem and brains
     def folderitems(self):
         items = AnalysesView.folderitems(self)
         items.sort(key=itemgetter('CaptureDate'), reverse=True)
         for i in range(len(items)):
             obj = items[i]['obj']
+            # TODO-performance: getting an object
+            # Note here the object in items[i]['obj'] is a brain, cause the
+            # base class (AnalysesView), calls folderitems(.., classic=False).
+            obj = obj.getObject()
             imgtype = ""
             if obj.portal_type == 'ReferenceAnalysis':
                 antype = QCANALYSIS_TYPES.getValue(obj.getReferenceType())
@@ -425,9 +429,9 @@ class InstrumentReferenceAnalysesView(AnalysesView):
             elif obj.portal_type == 'DuplicateAnalysis':
                 antype = QCANALYSIS_TYPES.getValue('d')
                 imgtype = "<img title='%s' src='%s/++resource++bika.lims.images/duplicate.png'/>&nbsp;" % (antype, self.context.absolute_url())
-                items[i]['sortcode'] = '%s_%s' % (obj.getSample().id, obj.getService().getKeyword())
+                items[i]['sortcode'] = '%s_%s' % (obj.getSample().id, obj.getKeyword())
             else:
-                items[i]['sortcode'] = '%s_%s' % (obj.getSample().id, obj.getService().getKeyword())
+                items[i]['sortcode'] = '%s_%s' % (obj.getSample().id, obj.getKeyword())
 
             items[i]['before']['Service'] = imgtype
 

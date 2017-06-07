@@ -4,7 +4,6 @@
 # Some rights reserved. See LICENSE.txt, AUTHORS.txt.
 
 from plone import api
-from AccessControl import getSecurityManager
 from Products.CMFCore.permissions import ModifyPortalContent
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
 from bika.lims import bikaMessageFactory as _
@@ -73,96 +72,130 @@ class AnalysisRequestsView(BikaListingView):
             getDisplayAdvancedFilterBarForAnalysisRequests()
 
         self.columns = {
-            'getRequestID': {'title': _('Request ID'),
-                            'attr': 'getId',
-                            'replace_url': 'getSampleURL',
-                            'index': 'getId'},
-            'getClientOrderNumber': {'title': _('Client Order'),
-                                     'index': 'getClientOrderNumber',
-                                     'toggle': True},
-            'Creator': {'title': PMF('Creator'),
-                                     'index': 'Creator',
-                                     'toggle': True},
-            'Created': {'title': PMF('Date Created'),
-                        'index': 'created',
-                        'toggle': False},
-            'getSample': {'title': _("Sample"),
-                        'attr': 'getSampleID',
-                        'replace_url': 'getSampleURL',
-                        'toggle': True, },
-            'BatchID': {'title': _("Batch ID"), 'toggle': True},
-            # 'SubGroup': {'title': _('Sub-group')},
-            'Client': {'title': _('Client'),
-                    'attr': 'getClientTitle',
-                    'replace_url': 'getClientURL',
-                    'toggle': True},
-            'Province': {'title': _('Province'),
-                       'toggle': True},
-            'District': {'title': _('District'),
-                       'toggle': True},
-            'getClientReference': {'title': _('Client Ref'),
-                                   'index': 'getClientReference',
-                                   'toggle': True},
-            'getClientSampleID': {'title': _('Client SID'),
-                                  'index': 'getClientSampleID',
-                                  'toggle': True},
-            'ClientContact': {'title': _('Contact'),
-                                 'toggle': False},
-            'getSampleTypeTitle': {'title': _('Sample Type'),
-                                   'index': 'getSampleTypeTitle',
-                                   'toggle': True},
-            'getSamplePointTitle': {'title': _('Sample Point'),
-                                    'index': 'getSamplePointTitle',
-                                    'toggle': False},
-            'getStorageLocation': {'title': _('Storage Location'),
-                                    'toggle': False},
-            'SamplingDeviation': {'title': _('Sampling Deviation'),
-                                  'toggle': False},
-            'Priority': {'title': _('Priority'),
-                            'toggle': True,
-                            'index': 'Priority',
-                            'sortable': True},
+            'getRequestID': {
+                'title': _('Request ID'),
+                'attr': 'getId',
+                'replace_url': 'absolute_url',
+                'index': 'getId'},
+            'getClientOrderNumber': {
+                'title': _('Client Order'),
+                'sortable': False,
+                'toggle': True},
+            'Creator': {
+                'title': PMF('Creator'),
+                'sortable': False,
+                'toggle': True},
+            'Created': {
+                'title': PMF('Date Created'),
+                'index': 'created',
+                'toggle': False},
+            'getSample': {
+                'title': _("Sample"),
+                'attr': 'getSampleID',
+                'index': 'getSampleID',
+                'replace_url': 'getSampleURL',
+                'toggle': True, },
+            'BatchID': {
+                'title': _("Batch ID"),
+                'sortable': False,
+                'toggle': True},
+            'Client': {
+                'title': _('Client'),
+                'index': 'getClientTitle',
+                'attr': 'getClientTitle',
+                'replace_url': 'getClientURL',
+                'toggle': True},
+            'Province': {
+                'title': _('Province'),
+                'sortable': True,
+                'index': 'getProvince',
+                'toggle': True},
+            'District': {
+                'title': _('District'),
+                'sortable': True,
+                'index': 'getDistrict',
+                'toggle': True},
+            'getClientReference': {
+                'title': _('Client Ref'),
+                'sortable': False,
+                'toggle': True},
+            'getClientSampleID': {
+                'title': _('Client SID'),
+                'toggle': True},
+            'ClientContact': {
+                'title': _('Contact'),
+                'sortable': False,
+                'toggle': False},
+            'getSampleTypeTitle': {
+                'title': _('Sample Type'),
+                'sortable': False,
+                'toggle': True},
+            'getSamplePointTitle': {
+                'title': _('Sample Point'),
+                'sortable': False,
+                'toggle': False},
+            'getStorageLocation': {
+                'title': _('Storage Location'),
+                'sortable': False,
+                'toggle': False},
+            'SamplingDeviation': {
+                'title': _('Sampling Deviation'),
+                'sortable': False,
+                'toggle': False},
             # 'AdHoc': {'title': _('Ad-Hoc'),
             #           'toggle': False},
-            'SamplingDate': {'title': _('Sampling Date'),
-                             'index': 'getSamplingDate',
-                             'toggle': True},
-            'getDateSampled': {'title': _('Date Sampled'),
-                               'index': 'getDateSampled',
-                               'toggle': SamplingWorkflowEnabled,
-                               'input_class': 'datetimepicker_nofuture',
-                               'input_width': '10'},
-            'getDateVerified': {'title': _('Date Verified'),
-                                'input_width': '10'},
-            'getSampler': {'title': _('Sampler'),
-                           'toggle': SamplingWorkflowEnabled},
-            'getDatePreserved': {'title': _('Date Preserved'),
-                                 'toggle': False,
-                                 'input_class': 'datetimepicker_nofuture',
-                                 'input_width': '10',
-                                 'sortable': False},  # no datesort without index
-            'getPreserver': {'title': _('Preserver'),
-                             'toggle': False},
-            'getDateReceived': {'title': _('Date Received'),
-                                'index': 'getDateReceived',
-                                'toggle': False},
-            'getDatePublished': {'title': _('Date Published'),
-                                 'index': 'getDatePublished',
-                                 'toggle': False},
-            'state_title': {'title': _('State'),
-                            'index': 'review_state'},
-            'getProfilesTitle': {'title': _('Profile'),
-                                'index': 'getProfilesTitle',
-                                'toggle': False},
-            'getAnalysesNum': {'title': _('Number of Analyses'),
-                               'index': 'getAnalysesNum',
-                               'sortable': True,
-                               'toggle': False},
-            'getTemplateTitle': {'title': _('Template'),
-                                 'index': 'getTemplateTitle',
-                                 'toggle': False},
-            'Printed': {'title': _('Printed'),
-                                      'toggle': False},
+            'SamplingDate': {
+                'title': _('Sampling Date'),
+                'index': 'getSamplingDate',
+                'toggle': True},
+            'getDateSampled': {
+                'title': _('Date Sampled'),
+                'toggle': SamplingWorkflowEnabled,
+                'input_class': 'datetimepicker_nofuture',
+                'input_width': '10'},
+            'getDateVerified': {
+                'title': _('Date Verified'),
+                'input_width': '10'},
+            'getSampler': {
+                'title': _('Sampler'),
+                'toggle': SamplingWorkflowEnabled},
+            'getDatePreserved': {
+                'title': _('Date Preserved'),
+                'toggle': False,
+                'input_class': 'datetimepicker_nofuture',
+                'input_width': '10',
+                'sortable': False},  # no datesort without index
+            'getPreserver': {
+                'title': _('Preserver'),
+                'sortable': False,
+                'toggle': False},
+            'getDateReceived': {
+                'title': _('Date Received'),
+                'toggle': False},
+            'getDatePublished': {
+                'title': _('Date Published'),
+                'toggle': False},
+            'state_title': {
+                'title': _('State'),
+                'sortable': False,
+                'index': 'review_state'},
+            'getProfilesTitle': {
+                'title': _('Profile'),
+                'sortable': False,
+                'toggle': False},
+            'getAnalysesNum': {
+                'title': _('Number of Analyses'),
+                'sortable': False,
+                'toggle': False},
+            'getTemplateTitle': {
+                'title': _('Template'),
+                'sortable': False,
+                'toggle': False},
+            'Printed': {
+                'title': _('Printed'),
+                'sortable': False,
+                'index': 'getPrinted',
+                'toggle': False},
         }
 
         self.review_states = [
@@ -200,7 +233,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'SamplingDate',
                         'getDateSampled',
@@ -244,7 +276,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getAnalysesNum',
                         'getDateVerified',
@@ -279,7 +310,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getAnalysesNum',
                         'getDateVerified',
@@ -316,7 +346,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getAnalysesNum',
                         'getDateVerified',
@@ -357,7 +386,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getAnalysesNum',
                         'getDateVerified',
@@ -390,7 +418,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getDateSampled',
                         'getSampler',
@@ -429,7 +456,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getDateSampled',
                         'getSampler',
@@ -466,7 +492,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getDateSampled',
                         'getSampler',
@@ -501,7 +526,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getDateSampled',
                         'getSampler',
@@ -548,7 +572,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getDateSampled',
                         'getSampler',
@@ -585,7 +608,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getDateSampled',
                         'getSampler',
@@ -632,7 +654,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getDateSampled',
                         'getSampler',
@@ -680,7 +701,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'SamplingDate',
                         'getDateSampled',
@@ -717,7 +737,6 @@ class AnalysisRequestsView(BikaListingView):
                         'getSamplePointTitle',
                         'getStorageLocation',
                         'SamplingDeviation',
-                        'Priority',
                         # 'AdHoc',
                         'getDateSampled',
                         'getSampler',
@@ -836,7 +855,6 @@ class AnalysisRequestsView(BikaListingView):
                     (self.portal_url, t(_("Republished after last print")))
             item['after']['Printed'] = print_icon
         item['SamplingDeviation'] = obj.getSamplingDeviationTitle
-        item['Priority'] = obj.getPriority
 
         item['getStorageLocation'] = obj.getStorageLocationTitle
 
@@ -1056,7 +1074,7 @@ class AnalysisRequestsView(BikaListingView):
         """
         This function creates an instance of BikaListingFilterBar if the
         class has not created one yet.
-        :return: a BikaListingFilterBar instance
+        :returns: a BikaListingFilterBar instance
         """
         self._advfilterbar = self._advfilterbar if self._advfilterbar else \
             AnalysisRequestsBikaListingFilterBar(

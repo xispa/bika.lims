@@ -42,7 +42,9 @@ def read(context, request):
     for index in indexes:
         if index in request:
             if index == 'UID' and safe_unicode(request[index]) == "":
-                logger.error("Request with Null UID. Catalog Name: %s" % catalog_name)
+                msg = 'Request with no UID for %s catalog. Dismissing UID ' \
+                      'while filtering' % catalog_name
+                logger.warning(msg)
             if index == 'review_state' and "{" in request[index]:
                 continue
             contentFilter[index] = safe_unicode(request[index])
@@ -65,15 +67,24 @@ def read(context, request):
     if sort_order:
         contentFilter['sort_order'] = sort_order
     else:
-        sort_order = 'ascending'
         contentFilter['sort_order'] = 'ascending'
 
     include_fields = get_include_fields(request)
-    if debug_mode:
-        logger.info("contentFilter: " + str(contentFilter))
 
     # Get matching objects from catalog
     proxies = catalog(**contentFilter)
+
+    if debug_mode:
+        if len(proxies) == 0:
+            logger.info("contentFilter {} returned zero objects"
+                        .format(contentFilter))
+        elif len(proxies) == 1:
+            logger.info("contentFilter {} returned {} ({})".format(
+                contentFilter, proxies[0].portal_type, proxies[0].UID))
+        else:
+            types = ','.join(set([p.portal_type for p in proxies]))
+            logger.info("contentFilter {} returned {} items (types: {})"
+                        .format(contentFilter, len(proxies), types))
 
     # batching items
     page_nr = int(request.get("page_nr", 0))
@@ -114,8 +125,6 @@ def read(context, request):
         last_object_nr = ret['total_objects']
     ret['last_object_nr'] = last_object_nr
 
-    if debug_mode:
-        logger.info("{0} objects returned".format(len(ret['objects'])))
     return ret
 
 

@@ -81,7 +81,7 @@ class ReferenceAnalysesViewView(BrowserView):
         return self._analysesview
 
     def getReferenceSampleId(self):
-        return self.context.id;
+        return self.context.id
 
     def get_analyses_json(self):
         return self.get_analyses_view().get_analyses_json()
@@ -93,15 +93,9 @@ class ReferenceAnalysesView(AnalysesView):
 
     def __init__(self, context, request):
         AnalysesView.__init__(self, context, request)
-        self.catalog = 'bika_analysis_catalog'
         self.contentFilter = {'portal_type':'ReferenceAnalysis',
                               'path': {'query':"/".join(self.context.getPhysicalPath()),
                                        'level':0}}
-        self.show_select_row = False
-        self.show_sort_column = False
-        self.show_select_column = False
-        self.allow_edit = False
-
         self.columns = {
             'id': {'title': _('ID'), 'toggle':False},
             'getReferenceAnalysesGroupID': {'title': _('QC Sample ID'), 'toggle': True},
@@ -117,7 +111,9 @@ class ReferenceAnalysesView(AnalysesView):
                 'sortable': False,
                 'toggle': True},
             'Result': {'title': _('Result'), 'toggle':True},
-            'Captured': {'title': _('Captured'), 'toggle':True},
+            'CaptureDate': {'title': _('Captured'),
+                'index': 'getResultCaptureDate',
+                'toggle':True},
             'Uncertainty': {'title': _('+-'), 'toggle':True},
             'DueDate': {'title': _('Due Date'),
                         'index': 'getDueDate',
@@ -138,7 +134,7 @@ class ReferenceAnalysesView(AnalysesView):
                         'Method',
                         'Instrument',
                         'Result',
-                        'Captured',
+                        'CaptureDate',
                         'Uncertainty',
                         'DueDate',
                         'state_title'],
@@ -147,23 +143,43 @@ class ReferenceAnalysesView(AnalysesView):
         self.anjson = {}
 
     def isItemAllowed(self, obj):
+        """
+        :obj: it is a brain
+        """
         allowed = super(ReferenceAnalysesView, self).isItemAllowed(obj)
-        return allowed if not allowed else obj.getResult() != ''
+        return allowed if not allowed else obj.getResult != ''
 
     def folderitem(self, obj, item, index):
+        """
+        :obj: it is a brain
+        """
         item = super(ReferenceAnalysesView, self).folderitem(obj, item, index)
         if not item:
             return None
-        service = obj.getService()
-        item['Category'] = service.getCategoryTitle()
-        item['Service'] = service.Title()
-        item['Captured'] = self.ulocalized_time(obj.getResultCaptureDate())
-        brefs = obj.getBackReferences("WorksheetAnalysis")
-        item['Worksheet'] = brefs and brefs[0].Title() or ''
+        item['Category'] = obj.getCategoryTitle
+        wss = self.rc.getBackReferences(
+            obj.UID,
+            relationship="WorksheetAnalysis")
+        if not wss:
+            logger.warn(
+                'No Worksheet found for ReferenceAnalysis {}'
+                .format(obj.getId))
+        elif wss and len(wss) == 1:
+            # TODO-performance: We are getting the object here...
+            ws = wss[0].getSourceObject()
+            item['Worksheet'] = ws.Title()
+            anchor = '<a href="%s">%s</a>' % (ws.absolute_url(), ws.Title())
+            item['replace']['Worksheet'] = anchor
+        else:
+            logger.warn(
+                'More than one Worksheet found for ReferenceAnalysis {}'
+                .format(obj.getId))
+        service_uid = obj.getServiceUID
+        self.addToJSON(obj, service_uid, item)
+        return item
 
-        self.addToJSON(obj, service, item)
-
-    def addToJSON(self, analysis, service, item):
+    # TODO-catalog: memoize here?
+    def addToJSON(self, analysis, service_uid, item):
         """ Adds an analysis item to the self.anjson dict that will be used
             after the page is rendered to generate a QC Chart
         """
@@ -174,9 +190,8 @@ class ReferenceAnalysesView(AnalysesView):
         anrows = trows.get(qcid, [])
         anid = '%s.%s' % (item['getReferenceAnalysesGroupID'], item['id'])
         rr = parent.getResultsRangeDict()
-        uid = service.UID()
-        if uid in rr:
-            specs = rr.get(uid, None)
+        if service_uid in rr:
+            specs = rr.get(service_uid, None)
             try:
                 smin = float(specs.get('min', 0))
                 smax = float(specs.get('max', 0))
@@ -402,7 +417,7 @@ class ReferenceSamplesView(BikaListingView):
                 expirydate = DT2dt(exdate).replace(tzinfo=None)
                 if (datetime.today() > expirydate):
                     # Trigger expiration
-                    workflow.doActionFor(obj, 'expire')
+                    self.workflow.doActionFor(obj, 'expire')
                     item['review_state'] = 'expired'
                     item['obj'] = obj
 

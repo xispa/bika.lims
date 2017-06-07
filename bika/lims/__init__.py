@@ -55,7 +55,6 @@ def initialize(context):
     from content.analysisservice import AnalysisService
     from content.analysisspec import AnalysisSpec
     from content.arimport import ARImport
-    from content.arpriority import ARPriority
     from content.analysisprofile import AnalysisProfile
     from content.arreport import ARReport
     from content.artemplate import ARTemplate
@@ -132,7 +131,6 @@ def initialize(context):
     from controlpanel.bika_analysisspecs import AnalysisSpecs
     from controlpanel.bika_analysisprofiles import AnalysisProfiles
     from controlpanel.bika_artemplates import ARTemplates
-    from controlpanel.bika_arpriorities import ARPriorities
     from controlpanel.bika_attachmenttypes import AttachmentTypes
     from controlpanel.bika_batchlabels import BatchLabels
     from controlpanel.bika_calculations import Calculations
@@ -180,26 +178,33 @@ def initialize(context):
 
 
 def deprecated(comment=None, replacement=None):
-    """ A decorator which can be used to mark functions as deprecated.
-        Emits a DeprecationWarning showing the module and method being flagged
-        as deprecated. If replacement is set, the warn will also show which is
-        the function or class to be used instead.
     """
-    def old(oldcall):
-        def new(*args, **kwargs):
-            message = "Deprecated: '%s.%s'" % \
-                (oldcall.__module__,
-                 oldcall.__name__)
-            if replacement is not None:
-                message += ". Use '%s.%s' instead" % \
-                (replacement.__module__,
+    Flags a function as deprecated. A warning will be emitted.
+    :param comment: A human-friendly string, such as 'This  function
+                    will be removed soon'
+    :type comment: string
+    :param replacement: The function to be used instead
+    :type replacement: string or function
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            message = "Call to deprecated function '{}.{}'".format(
+                func.__module__,
+                func.__name__)
+            if replacement and isinstance(replacement, str):
+                message += ". Use '{}' instead".format(replacement)
+            elif replacement:
+                message += ". Use '{}.{}' instead".format(
+                 replacement.__module__,
                  replacement.__name__)
-            if comment is not None:
-                message += ". %s" % comment
+            if comment:
+                message += ". {}".format(comment)
+            warnings.simplefilter('always', DeprecationWarning)
             warnings.warn(message, category=DeprecationWarning, stacklevel=2)
-            return oldcall(*args, **kwargs)
-        return new
-    return old
+            warnings.simplefilter('default', DeprecationWarning)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class _DeprecatedClassDecorator(object):
