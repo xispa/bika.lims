@@ -50,7 +50,8 @@ class BikaCatalogTool(CatalogTool):
             self.counter = 0
             self.manage_catalogClear()
             # Getting UID catalog
-            uid_c = getToolByName(self.context, 'uid_catalog')
+            portal = getToolByName(self, 'portal_url').getPortalObject()
+            uid_c = getToolByName(portal, 'uid_catalog')
             brains = uid_c(portal_type=types)
             self.total = len(brains)
             for brain in brains:
