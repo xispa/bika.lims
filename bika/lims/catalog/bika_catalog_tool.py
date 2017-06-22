@@ -26,6 +26,8 @@ class BikaCatalogTool(CatalogTool):
         self.portal_type = portal_meta_type
         self.meta_type = portal_meta_type
         self.title = title
+        self.counter = None
+        self.total = None
         ZCatalog.__init__(self, id)
 
     def clearFindAndRebuild(self):
@@ -33,20 +35,37 @@ class BikaCatalogTool(CatalogTool):
            with an indexObject method), and reindexes them.
            This may take a long time.
         """
-        def indexObject(obj, path):
-            self.reindexObject(obj)
+        # def indexObject(obj, path):
+        #     self.reindexObject(obj)
+        #     self.counter += 1
+        #     if self.counter % 100 == 0:
+        #         logger.info('Progress: {} objects have been cataloged for {}.'
+        #                     .format(self.counter, self.id))
 
         logger.info('Cleaning and rebuilding %s...' % self.id)
         try:
             at = getToolByName(self, 'archetype_tool')
             types = [k for k, v in at.catalog_map.items()
                      if self.id in v]
+            self.counter = 0
             self.manage_catalogClear()
-            portal = getToolByName(self, 'portal_url').getPortalObject()
-            portal.ZopeFindAndApply(portal,
-                                    obj_metatypes=types,
-                                    search_sub=True,
-                                    apply_func=indexObject)
+            # Getting UID catalog
+            uid_c = getToolByName(self.context, 'uid_catalog')
+            brains = uid_c(portal_type=types)
+            self.total = len(brains)
+            for brain in brains:
+                obj = brain.getObject()
+                obj.reindexObject()
+                self.counter += 1
+                if self.counter % 100 == 0:
+                    logger.info(
+                        'Progress: {}/{} objects have been cataloged for {}.'
+                        .format(self.counter, self.total, self.id))
+            # portal = getToolByName(self, 'portal_url').getPortalObject()
+            # portal.ZopeFindAndApply(portal,
+            #                         obj_metatypes=types,
+            #                         search_sub=True,
+            #                         apply_func=indexObject)
         except:
             logger.error(traceback.format_exc())
             e = sys.exc_info()
