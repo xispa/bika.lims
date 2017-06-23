@@ -151,6 +151,7 @@ def setup_catalogs(
                 total = len(brains_to_uncat)
                 for brain in brains_to_uncat:
                     catalog_old.uncatalog_object(brain.UID)
+                    progress += 1
                     if progress % 100 == 0:
                         logger.info(
                             'Progress: {}/{} objects have been uncataloged '
@@ -170,6 +171,7 @@ def setup_catalogs(
             catalog.catalog_object(
                 brain.getObject(),
                 idxs=['UID', 'path', 'review_state', 'portal_type'])
+            progress += 1
             if progress % 100 == 0:
                 logger.info(
                     'Progress: {}/{} objects have been indexed '
