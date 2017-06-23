@@ -82,9 +82,6 @@ def upgrade(tool):
     # Adding two indexes in order to delete getBackreference in reflex rules
     reflex_rules(ut)
 
-    # Changing some indexes types
-    change_UUIDIndex(ut)
-
     # Refresh affected catalogs
     _cleanAndRebuildIfNeeded(portal, clean_and_rebuild)
     ut.refreshCatalogs()
@@ -854,23 +851,5 @@ def reflex_rules(ut):
     ut.addIndex(
         CATALOG_WORKSHEET_LISTING, 'getAnalysesUIDs', 'KeywordIndex')
     ut.addIndex(
-        CATALOG_ANALYSIS_LISTING, 'getOriginalReflexedAnalysisUID', 'UUIDIndex'
-        )
-
-
-def change_UUIDIndex(ut):
-    """
-    UUIDIndex behaves like a FieldIndex, but can only store one document id
-    per value, so there's a 1:1 mapping from value to document id. An error
-    is logged if a different document id is indexed for an already taken value.
-
-    Some UUIDIndexes need to be migarted to FieldIndexes because more than one
-    field could contain the same UID, for instance
-    getOriginalReflexedAnalysisUID field.
-    """
-    ut.delIndex(CATALOG_ANALYSIS_LISTING, 'getOriginalReflexedAnalysisUID')
-    ut.addIndex(
-        CATALOG_ANALYSIS_LISTING,
-        'getOriginalReflexedAnalysisUID',
-        'FieldIndex'
+        CATALOG_ANALYSIS_LISTING, 'getOriginalReflexedAnalysisUID', 'FieldIndex'
         )
