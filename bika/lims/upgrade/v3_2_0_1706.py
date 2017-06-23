@@ -33,12 +33,6 @@ def upgrade(tool):
 
     logger.info("Upgrading {0}: {1} -> {2}".format(product, ufrom, version))
 
-    # Updating lims catalogs if there is any change in them
-    logger.info("Updating catalogs...")
-    change_UUIDIndex(ut)
-    ut.refreshCatalogs()
-    logger.info("Catalogs updated")
-
     # Fix ARs - Analyses in inconsistent state
     # Transitioning Analysis Requests that were created before the upgrade
     # step 17.05 to "received" state, their analyses remain in "sample_due"
@@ -62,6 +56,7 @@ def fix_ar_analyses_statuses_inconsistences(portal):
     # - Sample must be in received state too
     # - Sample Partitions must be in received state too
     # - Analyses must be in received state too
+    rolemappings_needed = False
     target_state = 'sample_received'
     catalog = get_tool(CATALOG_ANALYSIS_REQUEST_LISTING)
     brains = catalog(portal_type='AnalysisRequest', review_state=target_state)
@@ -78,6 +73,7 @@ def fix_ar_analyses_statuses_inconsistences(portal):
                         'Sample', sample.getId(), sample_state, target_state))
                     changeWorkflowState(sample, 'bika_sample_workflow',
                                         target_state)
+                    rolemappings_needed = True
 
             # Check Sample partitions
             parts = sample.objectValues('SamplePartition')
@@ -91,6 +87,7 @@ def fix_ar_analyses_statuses_inconsistences(portal):
                             target_state))
                         changeWorkflowState(part, 'bika_sample_workflow',
                                             target_state)
+                        rolemappings_needed = True
 
         # Check analyses
         analyses = analysisrequest.getAnalyses(full_objects=True)
@@ -103,26 +100,10 @@ def fix_ar_analyses_statuses_inconsistences(portal):
                         'Analysis', analysis.getId(), an_state, target_state))
                     changeWorkflowState(analysis, 'bika_analysis_workflow',
                                         target_state)
+                    rolemappings_needed = True
 
-    # Force the update of role mappings
-    logger.info("Updating role mappings...")
-    wf = get_tool('portal_workflow')
-    wf.updateRoleMappings()
-
-
-def change_UUIDIndex(ut):
-    """
-    UUIDIndex behaves like a FieldIndex, but can only store one document id
-    per value, so there's a 1:1 mapping from value to document id. An error
-    is logged if a different document id is indexed for an already taken value.
-
-    Some UUIDIndexes need to be migrated to FieldIndexes because more than one
-    field could contain the same UID, for instance
-    getOriginalReflexedAnalysisUID field.
-    """
-    ut.delIndex(CATALOG_ANALYSIS_LISTING, 'getOriginalReflexedAnalysisUID')
-    ut.addIndex(
-        CATALOG_ANALYSIS_LISTING,
-        'getOriginalReflexedAnalysisUID',
-        'FieldIndex'
-        )
+    if rolemappings_needed:
+        # Force the update of role mappings
+        logger.info("Updating role mappings...")
+        wf = get_tool('portal_workflow')
+        wf.updateRoleMappings()
