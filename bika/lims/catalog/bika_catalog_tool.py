@@ -10,6 +10,7 @@ from Products.CMFCore.permissions import ManagePortal
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.CatalogTool import CatalogTool
 from Products.ZCatalog.ZCatalog import ZCatalog
+import transaction
 from bika.lims import logger
 
 
@@ -56,12 +57,23 @@ class BikaCatalogTool(CatalogTool):
             self.total = len(brains)
             for brain in brains:
                 obj = brain.getObject()
-                obj.reindexObject()
+                self.catalog_object(
+                    obj, idxs=self.indexes(),
+                    update_metadata=True)
                 self.counter += 1
                 if self.counter % 100 == 0:
                     logger.info(
                         'Progress: {}/{} objects have been cataloged for {}.'
                         .format(self.counter, self.total, self.id))
+                    if self.counter % 1000 == 0:
+                        transaction.commit()
+                        logger.info(
+                                '{0} items processed.'
+                                .format(self.counter))
+            transaction.commit()
+            logger.info(
+                '{0} items processed.'
+                .format(self.counter))
             # portal = getToolByName(self, 'portal_url').getPortalObject()
             # portal.ZopeFindAndApply(portal,
             #                         obj_metatypes=types,
