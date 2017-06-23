@@ -150,7 +150,7 @@ def setup_catalogs(
                 progress = 0
                 total = len(brains_to_uncat)
                 for brain in brains_to_uncat:
-                    catalog_old.uncatalog_object(brain.getObject())
+                    catalog_old.uncatalog_object(brain.UID)
                     if progress % 100 == 0:
                         logger.info(
                             'Progress: {}/{} objects have been uncataloged '
