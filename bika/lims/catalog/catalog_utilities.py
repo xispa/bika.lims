@@ -16,6 +16,7 @@ from bika.lims.catalog.autoimportlogs_catalog import \
 from bika.lims.catalog.worksheet_catalog import \
     bika_catalog_worksheet_listing_definition
 import transaction
+import traceback
 
 
 def getCatalogDefinitions():
@@ -168,19 +169,19 @@ def setup_catalogs(
         progress = 0
         total = len(brains)
         logger.info('indexing {} objects in {}...'.format(total, cat_id))
-        for brain in brains:
-            # reindexing only vital indexes
-            catalog.catalog_object(
-                brain.getObject(),
-                idxs=['UID', 'path', 'review_state', 'portal_type'],
-                update_metadata=False)
-            progress += 1
-            if progress % 100 == 0:
-                logger.info(
-                    'Progress: {}/{} objects have been indexed '
-                    'in {}.'.format(progress, total, cat_id))
-                if progress % 1000 == 0:
-                    transaction.commit()
+        # for brain in brains:
+        #     # reindexing only vital indexes
+        #         catalog.catalog_object(
+        #             brain.getObject(),
+        #             idxs=['UID', 'path', 'review_state', 'portal_type'],
+        #             update_metadata=0)
+        #     progress += 1
+        #     if progress % 100 == 0:
+        #         logger.info(
+        #             'Progress: {}/{} objects have been indexed '
+        #             'in {}.'.format(progress, total, cat_id))
+        #         if progress % 1000 == 0:
+        #             transaction.commit()
 
 
 def _merge_catalog_definitions(dict1, dict2):
