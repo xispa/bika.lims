@@ -15,6 +15,7 @@ from bika.lims.catalog.autoimportlogs_catalog import \
     bika_catalog_autoimportlogs_listing_definition
 from bika.lims.catalog.worksheet_catalog import \
     bika_catalog_worksheet_listing_definition
+import transaction
 
 
 def getCatalogDefinitions():
@@ -150,7 +151,7 @@ def setup_catalogs(
                 progress = 0
                 total = len(brains_to_uncat)
                 for brain in brains_to_uncat:
-                    catalog_old.uncatalog_object(brain.UID)
+                    catalog_old.uncatalog_object(brain.getPath())
                     progress += 1
                     if progress % 100 == 0:
                         logger.info(
@@ -158,7 +159,7 @@ def setup_catalogs(
                             'from {}.'.format(progress, total, prev_cat))
             logger.info('Mapping {} type in {}...'.format(type_id, cat_id))
             archetype_tool.setCatalogsByType(type_id, [cat_id])
-        for index_id, index_type in cat_def.get('indexes'):
+        for index_id, index_type in cat_def.get('indexes').items():
             _addIndex(catalog, index_id, index_type)
         for column in cat_def.get('columns'):
             _addColumn(catalog, column)
@@ -166,16 +167,20 @@ def setup_catalogs(
         brains = uid_catalog(portal_type=cat_def.get('types'))
         progress = 0
         total = len(brains)
+        logger.info('indexing {} objects in {}...'.format(total, cat_id))
         for brain in brains:
             # reindexing only vital indexes
             catalog.catalog_object(
                 brain.getObject(),
-                idxs=['UID', 'path', 'review_state', 'portal_type'])
+                idxs=['UID', 'path', 'review_state', 'portal_type'],
+                update_metadata=False)
             progress += 1
             if progress % 100 == 0:
                 logger.info(
                     'Progress: {}/{} objects have been indexed '
                     'in {}.'.format(progress, total, cat_id))
+                if progress % 1000 == 0:
+                    transaction.commit()
 
 
 def _merge_catalog_definitions(dict1, dict2):
