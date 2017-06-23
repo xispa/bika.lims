@@ -91,31 +91,90 @@ def setup_catalogs(
         columns and indexes required by Bika-specific add-ons.
     :type catalog_extensions: dict
     """
+    # This dictionary will contain the different modifications to carry on
+    # for each catalog.
+    # {'id_catalog': {
+    #       new_indexes:[], new_columns:[], removal_types:[], added_types:[]}
+    catalog_modifications = {}
     # If not given catalogs_definition, use the LIMS one
     if not catalogs_definition:
         catalogs_definition = getCatalogDefinitions()
+    #
+    # # Merge the catalogs definition of the extension with the primary
+    # # catalog definition
+    # definition = _merge_catalog_definitions(catalogs_definition,
+    #                                         catalogs_extension)
 
-    # Merge the catalogs definition of the extension with the primary
-    # catalog definition
-    definition = _merge_catalog_definitions(catalogs_definition,
-                                            catalogs_extension)
-
-    # Mapping content types in catalogs
-    # This variable will be used to clean reindex the catalog. Saves the
-    # catalogs ids
     archetype_tool = getToolByName(portal, 'archetype_tool')
-    clean_and_rebuild = _map_content_types(archetype_tool, definition)
+    # Mapping content types in catalogs depending on the catalog definition.
+    # This variable will be used to reindex the catalog.
+    # catalog_modifications = _map_content_types(
+    #         archetype_tool, definition, catalog_modifications)
+    #
+    # # Indexing
+    # for cat_id in definition.keys():
+    #     catalog_modifications = _setup_catalog(
+    #         portal, cat_id, definition.get(cat_id, {}), catalog_modifications)
+    # # Reindex the catalogs which needs it
+    # _cleanAndRebuildIfNeeded(portal, catalog_modifications)
 
-    # Indexing
-    for cat_id in definition.keys():
-        reindex = False
-        reindex = _setup_catalog(
-            portal, cat_id, definition.get(cat_id, {}))
-        if (reindex or force_reindex) and (cat_id not in clean_and_rebuild):
-            # add the catalog if it has not been added before
-            clean_and_rebuild.append(cat_id)
-    # Reindex the catalogs which needs it
-    _cleanAndRebuildIfNeeded(portal, clean_and_rebuild)
+    ### PHARMAWAY
+    uid_catalog = getToolByName(portal, 'uid_catalog', None)
+    if uid_catalog is None:
+        logger.warning('Could not find the %s tool.' % ('uid_catalog'))
+        return False
+    for cat_id in catalogs_definition.keys():
+        logger.info('Setting up catalog "{}"...'.format(cat_id))
+        catalog = getToolByName(portal, cat_id, None)
+        if catalog is None:
+            logger.warning('Could not find the %s tool.' % (cat_id))
+            continue
+
+        cat_def = catalogs_definition.get(cat_id)
+        # Mapping types to each catalog
+        for type_id in cat_def.get('types'):
+            # Getting the previous mapping
+            prev_catalogs_list = archetype_tool.catalog_map.get(type_id, [])
+            # uncataloging items from old catalogs
+            for prev_cat in prev_catalogs_list:
+                if prev_cat == 'uid_catalog':
+                    continue
+                catalog_old = getToolByName(portal, prev_cat, None)
+                if catalog_old is None:
+                    logger.warning(
+                        'Could not find the %s tool.' % prev_cat)
+                    continue
+                logger.info('uncatalogging "{}" from {}'.format(type_id,
+                                                                prev_cat))
+                brains_to_uncat = catalog_old(portal_type=type_id)
+                progress = 0
+                total = len(brains_to_uncat)
+                for brain in brains_to_uncat:
+                    catalog_old.uncatalog(brain.getObject())
+                    if progress % 100 == 0:
+                        logger.info(
+                            'Progress: {}/{} objects have been uncataloged '
+                            'from {}.'.format(progress, total, prev_cat))
+            logger.info('Mapping {} type in {}...'.format(type_id, cat_id))
+            archetype_tool.setCatalogsByType(type_id, [cat_id])
+        for index_id, index_type in cat_def.get('indexes'):
+            _addIndex(catalog, index_id, index_type)
+        for column in cat_def.get('columns'):
+            _addColumn(catalog, column)
+        # reindexing objects
+        brains = uid_catalog(portal_type=cat_def.get('types'))
+        progress = 0
+        total = len(brains)
+        for brain in brains:
+            # reindexing only vital indexes
+            catalog.catalog_object(
+                brain.getObject(),
+                idxs=['UID', 'path', 'review_state', 'portal_type'])
+            if progress % 100 == 0:
+                logger.info(
+                    'Progress: {}/{} objects have been indexed '
+                    'in {}.'.format(progress, total, cat_id))
+
 
 def _merge_catalog_definitions(dict1, dict2):
     """
@@ -180,9 +239,13 @@ def _merge_catalog_definitions(dict1, dict2):
         outdict[k] = v.copy()
     return outdict
 
-def _map_content_types(archetype_tool, catalogs_definition):
+
+def _map_content_types(
+        archetype_tool, catalogs_definition, catalog_modifications):
     """
-    Updates the mapping for content_types against catalogs
+    Updates the mapping for content_types against catalogs.
+    This function returns which types has been removed from a catalog and
+    which types have been added to a catalog and which this is.
     :archetype_tool: an archetype_tool object
     :catalogs_definition: a dictionary like
         {
@@ -198,14 +261,17 @@ def _map_content_types(archetype_tool, catalogs_definition):
                 ]
             }
         }
+    :catalog_modifications: a dictionary containing all the modifications
+    to carry on.
+        {'id_catalog': {
+            new_indexes:[], new_columns:[], removal_types:[], added_types:[],
+            ...}
     """
-    # This will be a dictionari like {'content_type':['catalog_id', ...]}
+    # This will be a dictionary like {'content_type':['catalog_id', ...]}
     ct_map = {}
-    # This list will contain the atalog ids to be rebuild
-    to_reindex = []
-    # getting the dictionary of mapped content_types in the catalog
-    map_types = archetype_tool.catalog_map
+    # This list will contain the catalog ids to be modified
     for catalog_id in catalogs_definition.keys():
+        # Getting the defined structure for each catalog.
         catalog_info = catalogs_definition.get(catalog_id, {})
         # Mapping the catalog with the defined types
         types = catalog_info.get('types', [])
@@ -213,22 +279,50 @@ def _map_content_types(archetype_tool, catalogs_definition):
             tmp_l = ct_map.get(t, [])
             tmp_l.append(catalog_id)
             ct_map[t] = tmp_l
-    # Mapping
+    # Mapping for each type
     for t in ct_map.keys():
-        catalogs_list = ct_map[t]
-        # Getting the previus mapping
+        current_catalogs_list = ct_map[t]
+        # Getting the previous mapping
         perv_catalogs_list = archetype_tool.catalog_map.get(t, [])
+        current_catalogs_set = set(current_catalogs_list)
+        perv_catalogs_set = set(perv_catalogs_list)
+        # two situations can happen:
+        # 1- type deleted from  catalog
+        # 2- type added into a catalog
         # If the mapping has changed, update it
-        set1 = set(catalogs_list)
-        set2 = set(perv_catalogs_list)
-        if set1 != set2:
-            archetype_tool.setCatalogsByType(t, catalogs_list)
-            # Adding to reindex only the catalogs that have changed
-            to_reindex = to_reindex + list(set1 - set2) + list(set2 - set1)
-    return to_reindex
+        if current_catalogs_set != perv_catalogs_set:
+            # Setting catalogs to the type
+            archetype_tool.setCatalogsByType(t, current_catalogs_list)
+
+            # Checking situation 1
+            removed_from_catalogs = perv_catalogs_set - current_catalogs_set
+            for cat_id in removed_from_catalogs:
+                # Getting the removal_types list for this catalog
+                catalog_dict = catalog_modifications.get(cat_id, {})
+                cat_types_l = catalog_dict.get('removal_types', [])
+                # Adding the new id
+                cat_types_l.append(t)
+                # saving the value in catalog
+                catalog_dict['removal_types'] = cat_types_l
+                catalog_modifications[cat_id] = catalog_dict
+
+            # Checking situation 2
+            added_to_catalogs = current_catalogs_set - perv_catalogs_set
+            for cat_id in added_to_catalogs:
+                # Getting the removal_types list for this catalog
+                catalog_dict = catalog_modifications.get(cat_id, {})
+                cat_types_l = catalog_dict.get('added_types', [])
+                # Adding the new id
+                cat_types_l.append(t)
+                # saving the value in catalog
+                catalog_dict['added_types'] = cat_types_l
+                catalog_modifications[cat_id] = catalog_dict
+
+    return catalog_modifications
 
 
-def _setup_catalog(portal, catalog_id, catalog_definition):
+def _setup_catalog(
+            portal, catalog_id, catalog_definition, catalog_modifications):
     """
     Given a catalog definition it updates the indexes, columns and content_type
     definitions of the catalog.
@@ -246,9 +340,13 @@ def _setup_catalog(portal, catalog_id, catalog_definition):
                 ...
             ]
         }
+    :catalog_modifications: a dictionary containing all the modifications
+    to carry on.
+        {'id_catalog': {
+            new_indexes:[], new_columns:[], removal_types:[], added_types:[],
+            ...}
     """
 
-    reindex = False
     catalog = getToolByName(portal, catalog_id, None)
     if catalog is None:
         logger.warning('Could not find the %s tool.' % (catalog_id))
@@ -259,7 +357,8 @@ def _setup_catalog(portal, catalog_id, catalog_definition):
     for idx in indexes_ids:
         # The function returns if the index needs to be reindexed
         indexed = _addIndex(catalog, idx, catalog_definition['indexes'][idx])
-        reindex = True if indexed else reindex
+
+
     # Removing indexes
     in_catalog_idxs = catalog.indexes()
     to_remove = list(set(in_catalog_idxs)-set(indexes_ids))
@@ -377,3 +476,4 @@ def _cleanAndRebuildIfNeeded(portal, cleanrebuild):
             catalog.clearFindAndRebuild()
         else:
             logger.warning('%s do not found' % cat)
+

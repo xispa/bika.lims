@@ -18,6 +18,7 @@ from bika.lims.catalog import setup_catalogs
 from bika.lims.catalog import getCatalogDefinitions
 import traceback
 import sys
+from Products.ZCatalog.ProgressHandler import ZLogHandler
 import transaction
 
 
@@ -29,7 +30,7 @@ def upgrade(tool):
     qi = portal.portal_quickinstaller
     ufrom = qi.upgradeInfo('bika.lims')['installedVersion']
     logger.info("Upgrading Bika LIMS: %s -> %s" % (ufrom, '3.2.0'))
-
+    ut = UpgradeUtils(portal)
     """Updated profile steps
     list of the generic setup import step names: portal.portal_setup.getSortedImportSteps() <---
     if you want more metadata use this: portal.portal_setup.getImportStepMetadata('jsregistry') <---
@@ -52,15 +53,15 @@ def upgrade(tool):
 
     # Creating all the sampling coordinator roles, permissions and indexes
     logger.info("Sampling Coordinator...")
-    create_samplingcoordinator(portal)
+    create_samplingcoordinator(portal, ut)
 
     # Reflex Testing setup
     logger.info("Reflex testing...")
-    reflex_rules(portal)
+    reflex_rules(portal, ut)
 
     # Departments
     logger.info("Departments...")
-    departments(portal)
+    departments(portal, ut)
 
     # More than one department can be assigned to a Contact
     logger.info("More than one department per contact...")
@@ -76,7 +77,7 @@ def upgrade(tool):
 
     # Adding old method of instrument as a set .
     logger.info("Assigning Multiple method to instruments...")
-    instrument_multiple_methods(portal)
+    instrument_multiple_methods(portal, ut)
 
     # Update workflow permissions
     try:
@@ -91,30 +92,34 @@ def upgrade(tool):
     # Remove unused indexes and columns
     logger.info("Removing stale indexes...")
     bc = getToolByName(portal, 'bika_catalog', None)
-    delIndexAndColumn(bc, 'getProfilesTitle')
+    ut.delIndexAndColumn(bc, 'getProfilesTitle')
     # Add new indexes
-    addIndex(bc, 'getAnalysesUIDs', 'KeywordIndex')
+    ut.addIndex(bc, 'getAnalysesUIDs', 'KeywordIndex')
 
     # Adding two columns for client data
-    addColumnsForClient(portal)
+    addColumnsForClient(portal, ut)
 
     # Adding getAnalysisRequestUID column in analysis catalog
-    addgetAnalysisRequestUID(portal)
+    addgetAnalysisRequestUID(portal, ut)
     # Adding getBatchUID column in analysis catalog
-    addgetBatchUID(portal)
+    addgetBatchUID(portal, ut)
     # Adding getSampleConditionUID column in analysis catalog
-    addgetSampleConditionUID(portal)
+    addgetSampleConditionUID(portal, ut)
     # Adding getAnalysisRequestPrintStatus column in analysis catalog
-    addgetAnalysisRequestPrintStatus(portal)
+    addgetAnalysisRequestPrintStatus(portal, ut)
     # Adding getDateSubmitted column in analysis catalog
-    addgetDateSubmitted(portal)
+    addgetDateSubmitted(portal, ut)
 
-    # Clean and rebuild affected catalogs (if required)
-    logger.info("Cleaning and rebuilding...")
-    cleanAndRebuildIfNeeded(portal)
+    # # Clean and rebuild affected catalogs (if required)
+    # logger.info("Cleaning and rebuilding...")
+    # cleanAndRebuildIfNeeded(portal)
     # Updating lims catalogs if there is any change in them
     logger.info("Updating catalogs if needed...")
+
     setup_catalogs(portal, getCatalogDefinitions())
+    transaction.commit()
+
+    ut.refreshCatalogs()
     logger.info("Catalogs updated")
 
     return True
@@ -170,7 +175,7 @@ def migrate_instrument_locations(portal):
     transaction.commit()
 
 
-def create_samplingcoordinator(portal):
+def create_samplingcoordinator(portal, ut):
     # Creates the new group
     portal_groups = portal.portal_groups
     if 'SamplingCoordinator'\
@@ -233,77 +238,77 @@ def create_samplingcoordinator(portal):
 
     # Add the index for the catalog
     bc = getToolByName(portal, 'bika_catalog', None)
-    addIndex(bc, 'getScheduledSamplingSampler', 'FieldIndex')
+    ut.addIndex(bc, 'getScheduledSamplingSampler', 'FieldIndex')
     transaction.commit()
 
 
-def departments(portal):
+def departments(portal, ut):
     """ To add department indexes to the catalogs """
     bc = getToolByName(portal, 'bika_catalog')
     bac = getToolByName(portal, 'bika_analysis_catalog')
-    addIndex(bc, 'getDepartmentUIDs', 'KeywordIndex')
-    addIndex(bac, 'getDepartmentUID', 'KeywordIndex')
+    ut.addIndex(bc, 'getDepartmentUIDs', 'KeywordIndex')
+    ut.addIndex(bac, 'getDepartmentUID', 'KeywordIndex')
     transaction.commit()
 
 
-def addColumnsForClient(portal):
+def addColumnsForClient(portal, ut):
     """
     Add columns to portal catalog in order to use them in
     analysisrequests listings.
     """
     pc = getToolByName(portal, 'portal_catalog')
-    addColumn(pc, 'getProvince')
-    addColumn(pc, 'getDistrict')
-    transaction.commit()
+    # ut.addColumn(pc, 'getProvince')
+    #ut.addColumn(pc, 'getDistrict')
+    #transaction.commit()
 
 
-def addgetAnalysisRequestUID(portal):
+def addgetAnalysisRequestUID(portal, ut):
     """
     Add an index to analysis catalog in order to use them in
     analysisrequests listings.
     """
     catalog = getToolByName(portal, 'bika_analysis_catalog')
-    addIndex(catalog, 'getAnalysisRequestUID', 'FieldIndex')
+    ut.addIndex(catalog, 'getAnalysisRequestUID', 'FieldIndex')
     transaction.commit()
 
 
-def addgetBatchUID(portal):
+def addgetBatchUID(portal, ut):
     """
     Add an index to analysis catalog in order to use them in
     analysisrequests listings.
     """
     catalog = getToolByName(portal, 'bika_analysis_catalog')
-    addIndex(catalog, 'getBatchUID', 'FieldIndex')
+    ut.addIndex(catalog, 'getBatchUID', 'FieldIndex')
     transaction.commit()
 
 
-def addgetSampleConditionUID(portal):
+def addgetSampleConditionUID(portal, ut):
     """
     Add an index to analysis catalog in order to use them in
     analysisrequests listings.
     """
     catalog = getToolByName(portal, 'bika_analysis_catalog')
-    addIndex(catalog, 'getSampleConditionUID', 'FieldIndex')
+    ut.addIndex(catalog, 'getSampleConditionUID', 'FieldIndex')
     transaction.commit()
 
 
-def addgetAnalysisRequestPrintStatus(portal):
+def addgetAnalysisRequestPrintStatus(portal, ut):
     """
     Add an index to analysis catalog in order to use them in
     analysisrequests listings.
     """
     catalog = getToolByName(portal, 'bika_analysis_catalog')
-    addIndex(catalog, 'getAnalysisRequestPrintStatus', 'FieldIndex')
+    ut.addIndex(catalog, 'getAnalysisRequestPrintStatus', 'FieldIndex')
     transaction.commit()
 
 
-def addgetDateSubmitted(portal):
+def addgetDateSubmitted(portal, ut):
     """
     Add an index to analysis catalog in order to use them in
     analysisrequests listings.
     """
     catalog = getToolByName(portal, 'bika_analysis_catalog')
-    addIndex(catalog, 'getDateSubmitted', 'DateIndex')
+    ut.addIndex(catalog, 'getDateSubmitted', 'DateIndex')
     transaction.commit()
 
 
@@ -343,7 +348,7 @@ def multi_verification(portal):
     transaction.commit()
 
 
-def reflex_rules(portal):
+def reflex_rules(portal, ut):
     at = getToolByName(portal, 'archetype_tool')
     # If reflex rules folder is not created yet, we should create it
     typestool = getToolByName(portal, 'portal_types')
@@ -370,16 +375,16 @@ def reflex_rules(portal):
     ntp.manage_changeProperties(MetaTypesNotToQuery=types)
 
     pc = getToolByName(portal, 'portal_catalog')
-    addIndexAndColumn(pc, 'Analyst', 'FieldIndex')
+    ut.addIndexAndColumn(pc, 'Analyst', 'FieldIndex')
 
     bsc = getToolByName(portal, 'bika_setup_catalog')
-    addIndex(bsc, 'getAvailableMethodsUIDs', 'KeywordIndex')
-    addIndex(bsc, 'getMethodUID', 'FieldIndex')
+    ut.addIndex(bsc, 'getAvailableMethodsUIDs', 'KeywordIndex')
+    ut.addIndex(bsc, 'getMethodUID', 'FieldIndex')
 
     bac = getToolByName(portal, 'bika_analysis_catalog')
-    addIndex(bac, 'getInstrumentUID', 'FieldIndex')
-    addIndex(bac, 'getMethodUID', 'FieldIndex')
-    addIndex(bac, 'getInstrumentUID', 'FieldIndex')
+    ut.addIndex(bac, 'getInstrumentUID', 'FieldIndex')
+    ut.addIndex(bac, 'getMethodUID', 'FieldIndex')
+    ut.addIndex(bac, 'getInstrumentUID', 'FieldIndex')
     transaction.commit()
 
 
@@ -402,13 +407,13 @@ def multi_department_to_labcontact(portal):
     transaction.commit()
 
 
-def instrument_multiple_methods(portal):
+def instrument_multiple_methods(portal, ut):
     # An instrument had only a single relevant field called "Method".
     # This field has been replaced with a multiValued "Methods" field.
 
     # First adding new index
     bsc = getToolByName(portal, 'bika_setup_catalog')
-    addIndex(bsc, 'getMethodUIDs', 'KeywordIndex')
+    ut.addIndex(bsc, 'getMethodUIDs', 'KeywordIndex')
 
     for instrument in portal.bika_setup.bika_instruments.objectValues():
         value = instrument.Schema().get("Method", None).get(instrument)
@@ -420,66 +425,164 @@ def instrument_multiple_methods(portal):
 # *********************
 # Helper methods below
 # *********************
-cleanrebuild = []
-def delIndexAndColumn(catalog, index):
-    if index in catalog.indexes():
-        try:
-            catalog.delIndex(index)
-            logger.info('Old catalog index %s deleted.' % index)
-            if catalog.id not in cleanrebuild:
-                cleanrebuild.append(catalog.id)
-        except:
-            pass
-        try:
-            catalog.delColumn(index)
-            logger.info('Old catalog column %s deleted.' % index)
-        except:
-            pass
+class UpgradeUtils(object):
+    def __init__(self, portal, pgthreshold=100):
+        self.portal = portal
+        self.reindexcatalog = {}
+        self.refreshcatalog = []
+        self.pgthreshold = pgthreshold
 
-def addIndex(catalog, index, indextype):
-    if index not in catalog.indexes():
-        try:
-            catalog.addIndex(index, indextype)
-            logger.info('Catalog index %s added.' % index)
-            if catalog.id not in cleanrebuild:
-                cleanrebuild.append(catalog.id)
-        except:
-            pass
+    def delIndexAndColumn(self, catalog, index):
+        self.delIndex(catalog, index)
+        self.delColumn(catalog, index)
 
+    def addIndexAndColumn(self, catalog, index, indextype):
+        self.addIndex(catalog, index, indextype)
+        self.addColumn(catalog, index)
 
-def addColumn(cat, col):
-    if col not in cat.schema():
-        try:
-            cat.addColumn(col)
-            logger.info('Column %s added to %s.' % (col, cat.id))
-            if catalog.id not in cleanrebuild:
-                cleanrebuild.append(catalog.id)
-        except:
-            logger.error(
-                'Catalog column %s error while adding to %s.' % (col, cat.id))
+    def reindexAndRefresh(self):
+        self.refreshCatalogs()
 
+    def _getCatalog(self, catalog):
+        if isinstance(catalog, str):
+            return getToolByName(self.portal, catalog)
+        return catalog
 
-def addIndexAndColumn(catalog, index, indextype):
-    if index not in catalog.indexes():
-        try:
-            catalog.addIndex(index, indextype)
-            logger.info('Catalog index %s added.' % index)
-            if catalog.id not in cleanrebuild:
-                cleanrebuild.append(catalog.id)
-        except:
-            pass
-        try:
-            catalog.addColumn(index)
-            logger.info('Catalog column %s added.' % index)
-        except:
-            pass
+    def delIndex(self, catalog, index):
+        cat = self._getCatalog(catalog)
+        if index not in cat.indexes():
+            return
+        cat.delIndex(index)
+        logger.info('Deleted index {0} from catalog {1}'.format(
+            index, cat.id))
 
-def cleanAndRebuildIfNeeded(portal):
-    for c in cleanrebuild:
-        try:
-            catalog = getToolByName(portal, c)
-            catalog.clearFindAndRebuild()
-        except:
-            logger.info("Unable to clean and rebuild %s " % c)
-            pass
+    def delColumn(self, catalog, column):
+        cat = self._getCatalog(catalog)
+        if column not in cat.schema():
+            return
+        cat.delColumn(column)
+        logger.info('Deleted column {0} from catalog {1} deleted.'.format(
+            column, cat.id))
+
+    def addIndex(self, catalog, index, indextype):
+        cat = self._getCatalog(catalog)
+        if index in cat.indexes():
+            return
+        if indextype == 'ZCTextIndex':
+            addZCTextIndex(cat, index)
+        else:
+            cat.addIndex(index, indextype)
+        logger.info('Catalog index %s added.' % index)
+        indexes = self.reindexcatalog.get(cat.id, [])
+        indexes.append(index)
+        indexes = list(set(indexes))
+        self.reindexcatalog[cat.id] = indexes
         transaction.commit()
+
+    def addColumn(self, catalog, column):
+        cat = self._getCatalog(catalog)
+        if column in cat.schema():
+            return
+        cat.addColumn(column)
+        logger.info('Added column {0} to catalog {1}'.format(
+            column, cat.id))
+        if cat.id not in self.refreshcatalog:
+            logger.info("{} to refresh because col {} added".format(
+                catalog, column
+            ))
+            self.refreshcatalog.append(cat.id)
+        transaction.commit()
+
+    def refreshCatalogs(self):
+        """
+        It reindexes the modified catalogs but, while cleanAndRebuildCatalogs
+        recatalogs all objects in the database, this method only reindexes over
+        the already cataloged objects.
+
+        If a metacolumn is added it refreshes the catalog, if only a new index
+        is added, it reindexes only those new indexes.
+        """
+        to_refresh = self.refreshcatalog[:]
+        to_reindex = self.reindexcatalog.keys()
+        to_reindex = to_reindex[:]
+        done = []
+        # Start reindexing the catalogs with new columns
+        to_not_refresh = ['bika_analysis_catalog']
+        for catalog_to_refresh in to_refresh:
+            if catalog_to_refresh in to_not_refresh:
+                continue
+            logger.info(
+                'Catalog {0} refreshing started'.format(catalog_to_refresh))
+            catalog = getToolByName(self.portal, catalog_to_refresh)
+            handler = ZLogHandler(self.pgthreshold)
+            catalog.refreshCatalog(pghandler=handler)
+            logger.info('Catalog {0} refreshed'.format(catalog_to_refresh))
+            transaction.commit()
+            done.append(catalog_to_refresh)
+        # Now the catalogs which only need reindxing
+        for catalog_to_reindex in to_reindex:
+            if catalog_to_reindex in to_not_refresh:
+                continue
+            if catalog_to_reindex in done:
+                continue
+            logger.info(
+                'Catalog {0} reindexing started'.format(catalog_to_reindex))
+            catalog = getToolByName(
+                self.portal, catalog_to_reindex)
+            indexes = self.reindexcatalog[catalog_to_reindex]
+            handler = ZLogHandler(self.pgthreshold)
+            catalog.reindexIndex(indexes, None, pghandler=handler)
+            logger.info('Catalog {0} reindexed'.format(catalog_to_reindex))
+            transaction.commit()
+            done.append(catalog_to_reindex)
+
+    def cleanAndRebuildCatalog(self, catid):
+        catalog = getToolByName(self.portal, catid)
+        # manage_catalogRebuild does the same as clearFindAndRebuild
+        # but it alse loggs cpu and time.
+        catalog.manage_catalogRebuild()
+        logger.info('Catalog {0} cleaned and rebuilt'.format(catid))
+        transaction.commit()
+
+    def cleanAndRebuildCatalogs(self):
+        cats = self.refreshcatalog + self.reindexcatalog.keys()
+        for catid in cats:
+            self.cleanAndRebuildCatalog(catid)
+
+
+def addZCTextIndex(catalog, index_name):
+
+    if catalog is None:
+        logger.warning('Could not find the catalog tool.' + catalog)
+        return
+
+    # Create lexicon to be able to add ZCTextIndex
+    wordSplitter = Empty()
+    wordSplitter.group = 'Word Splitter'
+    wordSplitter.name = 'Unicode Whitespace splitter'
+    caseNormalizer = Empty()
+    caseNormalizer.group = 'Case Normalizer'
+    caseNormalizer.name = 'Unicode Case Normalizer'
+    stopWords = Empty()
+    stopWords.group = 'Stop Words'
+    stopWords.name = 'Remove listed and single char words'
+    elem = [wordSplitter, caseNormalizer, stopWords]
+    zc_extras = Empty()
+    zc_extras.index_type = 'Okapi BM25 Rank'
+    zc_extras.lexicon_id = 'Lexicon'
+
+    try:
+        catalog.manage_addProduct['ZCTextIndex'].manage_addLexicon('Lexicon',
+                                                               'Lexicon', elem)
+    except:
+        logger.warning('Could not add ZCTextIndex to '+str(catalog))
+
+    catalog.addIndex(index_name, 'ZCTextIndex', zc_extras)
+
+
+class Empty:
+    """
+    Just a class to use when we need an object with some attributes to send to
+    another objects an a parameter.
+    """
+    pass
