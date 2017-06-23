@@ -507,7 +507,10 @@ class UpgradeUtils(object):
         to_reindex = to_reindex[:]
         done = []
         # Start reindexing the catalogs with new columns
-        to_not_refresh = ['bika_analysis_catalog']
+        to_not_refresh = [
+            'bika_analysis_catalog',
+            'bika_catalog_analysisrequest_listing',
+            'bika_catalog_worksheet_listing']
         for catalog_to_refresh in to_refresh:
             if catalog_to_refresh in to_not_refresh:
                 continue
