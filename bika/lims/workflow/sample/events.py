@@ -120,6 +120,13 @@ def after_receive(obj):
     :param obj: Sample affected by the transition
     :type obj: Sample
     """
+    # In most cases, the date of a given transition can be retrieved from an
+    # object by using a getter that delegates the action to getTransitionDate,
+    # without the need of storing the value manually.
+    # This is a diifferent case: a DateTimeField/Widget field is explicitly
+    # declared in Sample's schema becaise in some cases, the user may want to
+    # change the Received Date by him/herself. For this reason, we set the
+    # value manually here.
     obj.setDateReceived(DateTime())
     obj.reindexObject(idxs=["getDateReceived", ])
     _cascade_transition(obj, 'receive')
