@@ -2842,7 +2842,15 @@ class AnalysisRequest(BaseFolder):
         from this Analysis Request
         """
         bsc = getToolByName(self, 'bika_setup_catalog')
-        dept_uids = [b.getDepartmentUID for b in self.getAnalyses()]
+        dept_uids = []
+        for an in self.getAnalyses():
+            deptuid = None
+            if hasattr(an, 'getDepartmentUID'):
+                deptuid = an.getDepartmentUID
+            if not deptuid and hasattr(an, 'getObject'):
+                deptuid = an.getObject().getDepartmentUID()
+            if deptuid:
+                dept_uids.append(deptuid)
         brains = bsc(portal_type='Department', UID=dept_uids)
         depts = [b.getObject() for b in brains]
         return list(set(depts))
@@ -3142,6 +3150,18 @@ class AnalysisRequest(BaseFolder):
     @security.public
     def guard_schedule_sampling_transition(self):
         return guards.schedule_sampling(self)
+
+    @deprecated('[1705] Use guards.publish from '
+                'bika.lims.workflow.analysisrequest')
+    @security.public
+    def guard_publish_transition(self):
+        return guards.publish(self)
+
+    @deprecated('[1705] Use guards.prepublish from '
+                'bika.lims.workflow.analysisrequest')
+    @security.public
+    def guard_prepublish_transition(self):
+        return guards.prepublish(self)
 
     @deprecated('[1705] Use events.after_no_sampling_workflow from '
                 'bika.lims.workflow.anaysisrequest')
