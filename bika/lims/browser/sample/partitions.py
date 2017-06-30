@@ -11,8 +11,9 @@ from bika.lims import EditSample
 from bika.lims import bikaMessageFactory as _
 from bika.lims.browser.bika_listing import BikaListingView
 from bika.lims.permissions import *
-from bika.lims.utils import changeWorkflowState, tmpID
+from bika.lims.utils import tmpID
 from bika.lims.utils import getUsers
+from bika.lims.workflow import changeWorkflowState
 from operator import itemgetter
 import App
 

@@ -6,8 +6,9 @@
 from Products.CMFPlone.utils import _createObjectByType
 from bika.lims.testing import BIKA_SIMPLE_FIXTURE
 from bika.lims.tests.base import BikaFunctionalTestCase
-from bika.lims.utils import tmpID, changeWorkflowState
+from bika.lims.utils import tmpID
 from bika.lims.workflow import doActionFor
+from bika.lims.workflow import changeWorkflowState
 from plone.app.testing import login
 from plone.app.testing import TEST_USER_NAME
 from Products.CMFCore.utils import getToolByName

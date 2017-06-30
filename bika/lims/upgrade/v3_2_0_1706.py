@@ -10,7 +10,7 @@ from bika.lims.upgrade import upgradestep
 from bika.lims.upgrade.utils import UpgradeUtils
 from bika.lims.catalog import CATALOG_ANALYSIS_LISTING
 from bika.lims.catalog import CATALOG_ANALYSIS_REQUEST_LISTING
-from bika.lims.utils import changeWorkflowState
+from bika.lims.workflow import changeWorkflowState
 from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import wasTransitionPerformed
 from plone.api.portal import get_tool

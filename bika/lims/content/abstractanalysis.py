@@ -28,10 +28,11 @@ from bika.lims.content.reflexrule import doReflexRuleAction
 from bika.lims.interfaces import ISamplePrepWorkflow, IDuplicateAnalysis
 from bika.lims.permissions import *
 from bika.lims.permissions import Verify as VerifyPermission
-from bika.lims.utils import changeWorkflowState, formatDecimalMark
+from bika.lims.utils import formatDecimalMark
 from bika.lims.utils import drop_trailing_zeros_decimal
 from bika.lims.utils.analysis import create_analysis, format_numeric_result
 from bika.lims.utils.analysis import get_significant_digits
+from bika.lims.workflow import changeWorkflowState
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getTransitionActor
 from bika.lims.workflow import getTransitionDate

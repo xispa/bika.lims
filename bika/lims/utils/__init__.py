@@ -12,6 +12,7 @@ import math
 
 from bika.lims import logger
 from bika.lims.browser import BrowserView
+from bika.lims.workflow import changeWorkflowState as _changeWorkflowState
 from DateTime import DateTime
 from email import Encoders
 from email.MIMEBase import MIMEBase
@@ -295,61 +296,11 @@ def logged_in_client(context, member=None):
     return client
 
 
+@deprecated('[1707] Use bika.lims.workflow.changeWorkflowState')
 def changeWorkflowState(content, wf_id, state_id, acquire_permissions=False,
                         portal_workflow=None, **kw):
-    """Change the workflow state of an object
-    @param content: Content obj which state will be changed
-    @param state_id: name of the state to put on content
-    @param acquire_permissions: True->All permissions unchecked and on riles and
-                                acquired
-                                False->Applies new state security map
-    @param portal_workflow: Provide workflow tool (optimisation) if known
-    @param kw: change the values of same name of the state mapping
-    @return: None
-    """
-
-    if portal_workflow is None:
-        portal_workflow = getToolByName(content, 'portal_workflow')
-
-    # Might raise IndexError if no workflow is associated to this type
-    found_wf = 0
-    for wf_def in portal_workflow.getWorkflowsFor(content):
-        if wf_id == wf_def.getId():
-            found_wf = 1
-            break
-    if not found_wf:
-        logger.error("%s: Cannot find workflow id %s" % (content, wf_id))
-
-    wf_state = {
-        'action': None,
-        'actor': None,
-        'comments': "Setting state to %s" % state_id,
-        'review_state': state_id,
-        'time': DateTime(),
-        }
-
-    # Updating wf_state from keyword args
-    for k in kw.keys():
-        # Remove unknown items
-        if k not in wf_state:
-            del kw[k]
-    if 'review_state' in kw:
-        del kw['review_state']
-    wf_state.update(kw)
-
-    portal_workflow.setStatusOf(wf_id, content, wf_state)
-
-    if acquire_permissions:
-        # Acquire all permissions
-        for permission in content.possible_permissions():
-            content.manage_permission(permission, acquire=1)
-    else:
-        # Setting new state permissions
-        wf_def.updateRoleMappingsFor(content)
-
-    # Map changes to the catalogs
-    content.reindexObject(idxs=['allowedRolesAndUsers', 'review_state'])
-    return
+    _changeWorkflowState(content, wf_id, state_id, acquire_permissions,
+                         portal_workflow, kw)
 
 
 def tmpID():

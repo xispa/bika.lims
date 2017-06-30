@@ -8,7 +8,7 @@ from Acquisition import aq_inner
 from bika.lims import logger
 from bika.lims.subscribers import doActionFor
 from bika.lims.subscribers import skip
-from bika.lims.utils import changeWorkflowState
+from bika.lims.workflow import changeWorkflowState
 from DateTime import DateTime
 from Products.Archetypes.config import REFERENCE_CATALOG
 from Products.Archetypes.event import ObjectInitializedEvent

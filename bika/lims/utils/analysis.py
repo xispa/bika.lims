@@ -15,7 +15,7 @@ from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.utils import _createObjectByType
 from bika.lims import bikaMessageFactory as _, logger
 from bika.lims.interfaces import IAnalysisService
-from bika.lims.utils import changeWorkflowState
+from bika.lims.workflow import changeWorkflowState
 from bika.lims.utils import formatDecimalMark
 
 

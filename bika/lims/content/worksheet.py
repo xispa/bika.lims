@@ -27,8 +27,9 @@ from bika.lims.idserver import renameAfterCreation
 from bika.lims.interfaces import IWorksheet
 from bika.lims.permissions import EditWorksheet, ManageWorksheets
 from bika.lims.permissions import Verify as VerifyPermission
-from bika.lims.utils import changeWorkflowState, tmpID
+from bika.lims.utils import tmpID
 from bika.lims.utils import to_utf8 as _c
+from bika.lims.workflow import changeWorkflowState
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import skip
