@@ -197,3 +197,15 @@ def after_cancel(obj):
     ans = obj.getAnalyses(full_objects=True, cancellation_state='active')
     for analysis in ans:
         doActionFor(analysis, 'cancel')
+
+
+def after_retract(obj):
+    """Method triggered afeter a 'retract' transition for the Analysis Request
+    passed in is performed. Retracting an Analysis Request has no effect to the
+    analyses it contains, neither to the Sample that belongs to.
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+    :param obj: Analysis Request affected by the transition
+    :type obj: Analysis Request
+    """
+    pass

@@ -36,4 +36,12 @@ def after_verify(obj):
 
 
 def after_retract(obj):
+    """Method triggered afeter a 'retract' transition for the Worksheet passed
+    in is performed. Retracting a worksheet has no effect to the analyses it
+    contains, neither the Analysis Requests associated.
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+    :param obj: Worksheet affected by the transition
+    :type obj: Worksheet
+    """
     pass

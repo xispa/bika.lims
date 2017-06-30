@@ -6,9 +6,10 @@
 from AccessControl import getSecurityManager
 from Acquisition import aq_inner
 from bika.lims import logger
-from bika.lims.subscribers import doActionFor
-from bika.lims.subscribers import skip
+from bika.lims.workflow import doActionFor
+from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import changeWorkflowState
+
 from DateTime import DateTime
 from Products.Archetypes.config import REFERENCE_CATALOG
 from Products.Archetypes.event import ObjectInitializedEvent
@@ -20,12 +21,26 @@ from zope.interface import alsoProvides
 
 
 def ObjectInitializedEventHandler(instance, event):
+    """Fired when a IRoutineAnalysis has been created. Transitionates the
+    object (or its container) to a suitable state, if necessary.
 
-    wf_tool = getToolByName(instance, 'portal_workflow')
+    The object is transitioned to the same state as the container (e.g.: if
+    the Analysis Request is in a sampled state, the object's state must be
+    the same). Also looks after eventual inconsistencies: if the state of the
+    Analysis Request is to_be_verified, the AR itself must be transitioned
+    back to "sample_received" (retract transition).
 
+    :param instance: the analysis the event relates to
+    :param event: the event instance
+    :type instance: IRoutineAnalysis
+    :type event: Products.Archetypes.interfaces.IObjectInitializedEvent
+    """
     ar = instance.getRequest()
-    ar_state = wf_tool.getInfoFor(ar, 'review_state')
-    ar_ws_state = wf_tool.getInfoFor(ar, 'worksheetanalysis_review_state')
+    ar_state = getCurrentState(ar)
+    ar_ws_state = getCurrentState(ar, 'worksheetanalysis_review_state')
+
+    if ar_state = 'to_be_verified':
+        doActionFor(ar, 'retract')
 
     # Set the state of the analysis depending on the state of the AR.
     if ar_state in ('sample_registered',
