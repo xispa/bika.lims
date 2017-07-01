@@ -37,33 +37,27 @@ def ObjectInitializedEventHandler(instance, event):
     """
     ar = instance.getRequest()
     ar_state = getCurrentState(ar)
-    ar_ws_state = getCurrentState(ar, 'worksheetanalysis_review_state')
 
-    if ar_state = 'to_be_verified':
+    if ar_state == 'to_be_verified':
+        # Since all the analyses from the Analysis Request have been already
+        # submitted, the AR has been automatically transitioned to
+        # 'to_be_verified'. To prevent inconsistencies, retract the AR to be
+        # sure its state is 'sample_received' again. Note that retracting an
+        # Analysis Request has no effect to the Analyses it contains.
         doActionFor(ar, 'retract')
 
-    # Set the state of the analysis depending on the state of the AR.
-    if ar_state in ('sample_registered',
-                    'to_be_sampled',
-                    'sampled',
-                    'to_be_preserved',
-                    'sample_due',
-                    'sample_received'):
+    elif wasTransitionPerformed(ar, 'verify'):
+        # Weird. this should never happen: no new analyses can be added to an
+        # already verified Analysis Request
+        raise Exception("Cannot add a routine analysis to a verified AR")
+
+    else:
+        # Force the analysis to the same state as the Analysis Request. We use
+        # changeWorkflowState here because we are pretty sure doActionFor will
+        # not work: we do not know beforehand if the current state would allow
+        # such a transition.
         changeWorkflowState(instance, "bika_analysis_workflow", ar_state)
-    elif ar_state in ('to_be_verified'):
-        # Apply to AR only; we don't want this transition to cascade.
-        if 'workflow_skiplist' not in ar.REQUEST:
-            ar.REQUEST['workflow_skiplist'] = []
-        ar.REQUEST['workflow_skiplist'].append("retract all analyses")
-        wf_tool.doActionFor(ar, 'retract')
-        ar.REQUEST['workflow_skiplist'].remove("retract all analyses")
 
-    if ar_ws_state == 'assigned':
-        # TODO workflow: analysis request can be 'assigned'?
-        wf_tool.doActionFor(ar, 'unassign')
-        skip(ar, 'unassign', unskip=True)
-
-    return
 
 def ObjectRemovedEventHandler(instance, event):
     # TODO Workflow - Review all this function and normalize
