@@ -2,7 +2,6 @@ from Products.CMFCore.utils import getToolByName
 from DateTime import DateTime
 
 from bika.lims import logger
-from bika.lims.workflow import changeWorkflowState
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import isBasicTransitionAllowed

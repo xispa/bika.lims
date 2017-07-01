@@ -32,7 +32,6 @@ from bika.lims.utils import formatDecimalMark
 from bika.lims.utils import drop_trailing_zeros_decimal
 from bika.lims.utils.analysis import create_analysis, format_numeric_result
 from bika.lims.utils.analysis import get_significant_digits
-from bika.lims.workflow import changeWorkflowState
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getTransitionActor
 from bika.lims.workflow import getTransitionDate

@@ -44,7 +44,7 @@ from bika.lims.utils import user_fullname
 from bika.lims.utils.analysisrequest import notify_rejection
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getTransitionDate
-from bika.lims.workflow import getTransitionUsers
+from bika.lims.workflow import getTransitionMember
 from bika.lims.workflow import isBasicTransitionAllowed
 from bika.lims.workflow import isTransitionAllowed
 from bika.lims.workflow import skip
@@ -2252,34 +2252,17 @@ class AnalysisRequest(BaseFolder):
 
         RESPONSE.redirect(self.REQUEST.get_header('referer'))
 
-    security.declarePublic('getVerifier')
+    @security.public
+    def getVerifierFullName(self):
+        """Returns the fullname of the user that verified the Analysis Request.
+        :returns: the fullname of the user that verified the AR
+        :rtype: string
+        """
+        member = getTransitionMember(self, 'verify')
+        if member:
+            return member.getProperty('fullname')
 
-    def getVerifier(self):
-        wtool = getToolByName(self, 'portal_workflow')
-        mtool = getToolByName(self, 'portal_membership')
-
-        verifier = None
-        # noinspection PyBroadException
-        try:
-            review_history = wtool.getInfoFor(self, 'review_history')
-        except:
-            return 'access denied'
-
-        if not review_history:
-            return 'no history'
-        for items in review_history:
-            action = items.get('action')
-            if action != 'verify':
-                continue
-            actor = items.get('actor')
-            member = mtool.getMemberById(actor)
-            verifier = member.getProperty('fullname')
-            if verifier is None or verifier == '':
-                verifier = actor
-        return verifier
-
-    security.declarePublic('getContactUIDForUser')
-
+    @security.public
     def getContactUIDForUser(self):
         """ get the UID of the contact associated with the authenticated
             user
@@ -2978,8 +2961,7 @@ class AnalysisRequest(BaseFolder):
         Returns the User who received the analysis request.
         :returns: the user id
         """
-        user = getTransitionUsers(self, 'receive', last_user=True)
-        return user[0] if user else ''
+        return getTransitionActor(self, 'receive')
 
     def getDateVerified(self):
         """

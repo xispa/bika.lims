@@ -12,7 +12,6 @@ import math
 
 from bika.lims import logger
 from bika.lims.browser import BrowserView
-from bika.lims.workflow import changeWorkflowState as _changeWorkflowState
 from DateTime import DateTime
 from email import Encoders
 from email.MIMEBase import MIMEBase
@@ -294,13 +293,6 @@ def logged_in_client(context, member=None):
             if member.id in obj.users_with_local_role('Owner'):
                 client = obj
     return client
-
-
-@deprecated('[1707] Use bika.lims.workflow.changeWorkflowState')
-def changeWorkflowState(content, wf_id, state_id, acquire_permissions=False,
-                        portal_workflow=None, **kw):
-    _changeWorkflowState(content, wf_id, state_id, acquire_permissions,
-                         portal_workflow, kw)
 
 
 def tmpID():

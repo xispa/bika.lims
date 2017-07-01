@@ -8,7 +8,6 @@ from bika.lims import PMF
 from bika.lims.browser import ulocalized_time
 from bika.lims.interfaces import IJSONReadExtender
 from bika.lims.jsonapi import get_include_fields
-from bika.lims.workflow import changeWorkflowState
 from bika.lims.utils import t
 from bika.lims import logger
 from Products.CMFCore.interfaces import IContentish
@@ -276,9 +275,10 @@ def isBasicTransitionAllowed(context, permission=None):
     """
     workflow = getToolByName(context, "portal_workflow")
     mtool = getToolByName(context, "portal_membership")
-    if not isActive(context) \
-        or (permission and mtool.checkPermission(permission, context)):
+    if not isActive(context):
         return False
+    if permission:
+        return mtool.checkPermission(permission, context)
     return True
 
 
@@ -305,8 +305,12 @@ def isTransitionAllowed(instance, transition_id, active_only=True):
 
 
 def wasTransitionPerformed(instance, transition_id):
-    """Checks if the transition has already been performed to the object
-    Instance's workflow history is checked.
+    """Checks if the transition passed in has been performed to the object.
+    :param instance: the object to check for the transition passed in
+    :param transition_id: the id of the transition to check
+    :type instance: ATContentType
+    :returns: true or false
+    :rtype: bool
     """
     review_history = getReviewHistory(instance)
     for event in review_history:
@@ -317,6 +321,10 @@ def wasTransitionPerformed(instance, transition_id):
 
 def isActive(instance):
     """Returns True if the object is neither in a cancelled nor inactive state
+    :param instance: the object to check for its active/inactive status
+    :type instance: ATContentType
+    :returns: true or false
+    :rtype: bool
     """
     state = getCurrentState(instance, 'cancellation_state')
     if state == 'cancelled':
@@ -329,7 +337,13 @@ def isActive(instance):
 
 def getReviewHistoryActionsList(instance):
     """Returns a list with the actions performed for the instance, from oldest
-    to newest"""
+    to newest. If there is no review history for the instance passed in or the
+    user has not enough privileges to see it, returns an empty list.
+    :param instance: the object to retrieve the review history from
+    :type instance: ATContentType
+    :returns: the list of action/transition ids, sorted from oldest to newest
+    :rtype: list
+    """
     review_history = getReviewHistory()
     review_history.reverse()
     actions = [event['action'] for event in review_history]
@@ -337,8 +351,13 @@ def getReviewHistoryActionsList(instance):
 
 
 def getReviewHistory(instance):
-    """Returns the review history for the instance in reverse order
+    """Returns the review history for the instance in reverse order, from newer
+    to older. If there is no review history for the instance passed in or the
+    current user has not enough privileges to see it, returns an empty list
+    :param instance: the object to retrieve the review history from
+    :type instance: ATContentType
     :returns: the list of historic events as dicts
+    :rtype: list of dicts
     """
     review_history = []
     workflow = getToolByName(instance, 'portal_workflow')
@@ -358,6 +377,12 @@ def getReviewHistory(instance):
 def getCurrentState(obj, stateflowid='review_state'):
     """ The current state of the object for the state flow id specified
         Return empty if there's no workflow state for the object and flow id
+    :param obj: the object from which the current state has to be retrieved
+    :type obj: ATContentType
+    :param stateflowid: the state flow id
+    :type stateflowid: string
+    :returns: the state of the passed in object for the passed in state flow id
+    :rtype: string
     """
     wf = getToolByName(obj, 'portal_workflow')
     return wf.getInfoFor(obj, stateflowid, '')
@@ -365,9 +390,15 @@ def getCurrentState(obj, stateflowid='review_state'):
 
 def getTransitionActor(obj, action_id):
     """Returns the actor that performed a given transition. If transition has
-    not been perormed, or current user has no privileges, returns None
-    :return: the username of the user that performed the transition passed-in
-    :type: string
+    not been performed, or current user has no privileges, returns None. If
+    the transition has been performed multiple times for the the passed-in
+    object, returns actor who performed the last transition
+    :param obj: object for which the transition was performed
+    :type obj: ATContentType
+    :param action_id: the transition id
+    :type action_id: string
+    :returns: the username of the user that performed the transition passed-in
+    :rtype: string
     """
     review_history = getReviewHistory(obj)
     for event in review_history:
@@ -376,10 +407,59 @@ def getTransitionActor(obj, action_id):
     return None
 
 
-def getTransitionDate(obj, action_id, return_as_datetime=False):
+def getTransitionActors(obj, action_id):
+    """Returns the actors that performed a given transition, sorted by the time
+    the transition was performed descendant. If transition has not been
+    performed, or current user has no privileges, returns an empty list.
+    :param obj: object for which the transition was performed
+    :type obj: ATContentType
+    :param action_id: the transition id
+    :type action_id: string
+    :returns: usernames of users that performed the transition passed-in
+    :rtype: list
     """
-    Returns date of action for object. Sometimes we need this date in Datetime
-    format and that's why added return_as_datetime param.
+    actors = []
+    review_history = getReviewHistory(obj)
+    for event in review_history:
+        if event.get('action') == action_id:
+            actor = event.get('actor')
+            actors.append(actor)
+    return actors
+
+
+def getTransitionMember(obj, action_id):
+    """Returns the member that performed a given transition. If transition has
+    not been performed, or current user has no privileges, returns None. If the
+    transition has been performed multiple times for the the passed-in object,
+    returns the member who performed the last transition
+    :param obj: object for which the transition was performed
+    :type obj: ATContentType
+    :param action_id: the transition id
+    :type action_id: string
+    :returns: the member that performed the transition passed-in
+    :rtype: IMember
+    """
+    actor = getTransitionActor(action_id)
+    if not actor:
+        return None
+    mtool = getToolByName(self, 'portal_membership')
+    member = mtool.getMemberById(actor)
+    return member
+
+
+def getTransitionDate(obj, action_id, return_as_datetime=False):
+    """Returns the date when the transition passed-in was performed.
+    If transition has not been performed to the passed in object, or current
+    user has no privileges, returns None. If the the transition has been
+    performed multiple times for the passed-in object, returns the last
+    transition date.
+    :param obj: object for which the transition was performed
+    :param action_id: the transition id
+    :param return_as_datetime: return the result as datetime or string
+    :type obj: ATContentType
+    :type action_id: string
+    :type return_as_datetime: bool
+    :returns: the date when the transition was performed
     """
     review_history = getReviewHistory(obj)
     for event in review_history:
@@ -392,36 +472,6 @@ def getTransitionDate(obj, action_id, return_as_datetime=False):
                                         time_only=False, context=obj)
                 return value
     return None
-
-
-def getTransitionUsers(obj, action_id, last_user=False):
-    """
-    This function returns a list with the users who have done the transition.
-    :action_id: a sring as the transition id.
-    :last_user: a boolean to return only the last user triggering the
-        transition or all of them.
-    :returns: a list of user ids.
-    """
-    workflow = getToolByName(obj, 'portal_workflow')
-    users = []
-    try:
-        # https://jira.bikalabs.com/browse/LIMS-2242:
-        # Sometimes the workflow history is inexplicably missing!
-        review_history = list(workflow.getInfoFor(obj, 'review_history'))
-    except WorkflowException:
-        logger.error(
-            "workflow history is inexplicably missing."
-            " https://jira.bikalabs.com/browse/LIMS-2242")
-        return users
-    # invert the list, so we always see the most recent matching event
-    review_history.reverse()
-    for event in review_history:
-        if event.get('action', '') == action_id:
-            value = event.get('actor', '')
-            users.append(value)
-            if last_user:
-                return users
-    return users
 
 
 def changeWorkflowState(content, wf_id, state_id, acquire_permissions=False,

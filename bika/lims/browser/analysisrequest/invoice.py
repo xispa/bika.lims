@@ -52,7 +52,7 @@ class InvoiceView(BrowserView):
         # Collect verified invoice information
         verified = reviewState in VERIFIED_STATES
         if verified:
-            self.verifiedBy = context.getVerifier()
+            self.verifiedBy = context.getVerifierFullName()
         self.verified = verified
         self.request['verified'] = verified
         # Collect published date

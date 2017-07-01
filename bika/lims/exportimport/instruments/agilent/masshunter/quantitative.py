@@ -15,7 +15,6 @@ from bika.lims import logger
 from bika.lims.browser import BrowserView
 from bika.lims.idserver import renameAfterCreation
 from bika.lims.utils import tmpID
-from bika.lims.workflow import changeWorkflowState
 from cStringIO import StringIO
 from datetime import datetime
 from operator import itemgetter
