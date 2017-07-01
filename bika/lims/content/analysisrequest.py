@@ -43,6 +43,7 @@ from bika.lims.utils import user_email
 from bika.lims.utils import user_fullname
 from bika.lims.utils.analysisrequest import notify_rejection
 from bika.lims.workflow import doActionFor
+from bika.lims.workflow import getTransitionActor
 from bika.lims.workflow import getTransitionDate
 from bika.lims.workflow import getTransitionMember
 from bika.lims.workflow import isBasicTransitionAllowed
@@ -1307,7 +1308,7 @@ schema = BikaSchema.copy() + Schema((
     # cases the user may want to change the Received Date.
     # AnalysisRequest and Sample's DateReceived fields needn't to have
     # the same value.
-    # This field is updated in workflow_script_receive method.
+    # Value updated in bika.lims.workflow.analysisrequest.events.after_receive
     DateTimeField(
         'DateReceived',
         mode="rw",
@@ -3136,78 +3137,6 @@ class AnalysisRequest(BaseFolder):
     @security.public
     def guard_prepublish_transition(self):
         return guards.prepublish(self)
-
-    @deprecated('[1705] Use events.after_no_sampling_workflow from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_no_sampling_workflow(self):
-        events.after_no_sampling_workflow(self)
-
-    @deprecated('[1705] Use events.after_sampling_workflow from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_sampling_workflow(self):
-        events.after_sampling_workflow(self)
-
-    @deprecated('[1705] Use events.after_sample from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_sample(self):
-        events.after_sample(self)
-
-    @deprecated('[1705] Use events.after_receive from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_receive(self):
-        events.after_receive(self)
-
-    @deprecated('[1705] Use events.after_preserve from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_preserve(self):
-        events.after_preserve(self)
-
-    @deprecated('[1705] Use events.after_attach from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_attach(self):
-        events.after_attach(self)
-
-    @deprecated('[1705] Use events.after_verify from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_verify(self):
-        events.after_verify(self)
-
-    @deprecated('[1705] Use events.after_publish from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_publish(self):
-        events.after_publish(self)
-
-    @deprecated('[1705] Use events.after_reinstate from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_reinstate(self):
-        events.after_reinstate(self)
-
-    @deprecated('[1705] Use events.after_cancel from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_cancel(self):
-        events.after_cancel(self)
-
-    @deprecated('[1705] Use events.after_schedule_sampling from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_schedule_sampling(self):
-        events.after_schedule_sampling(self)
-
-    @deprecated('[1705] Use events.after_reject from '
-                'bika.lims.workflow.anaysisrequest')
-    @security.public
-    def workflow_script_reject(self):
-        events.after_reject(self)
 
     def SearchableText(self):
         """

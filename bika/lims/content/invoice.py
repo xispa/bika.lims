@@ -144,11 +144,6 @@ class Invoice(BaseFolder):
             s = s + item['ItemDescription']
         return s
 
-    # XXX workflow script
-    def workflow_script_dispatch(self):
-        """ dispatch order """
-        self.setDateDispatched(DateTime())
-
     security.declarePublic('current_date')
 
     def current_date(self):

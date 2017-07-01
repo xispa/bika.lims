@@ -9,6 +9,7 @@ from Products.Archetypes.public import *
 
 from AccessControl import ClassSecurityInfo
 from bika.lims import bikaMessageFactory as _
+from bika.lims import deprecated
 from bika.lims.browser.widgets import DateTimeWidget
 from bika.lims.browser.widgets import ReferenceWidget as BikaReferenceWidget
 from bika.lims.config import PROJECTNAME
@@ -192,10 +193,6 @@ class SupplyOrder(BaseFolder):
                      ((Decimal(lineitem['VAT']) /100) + 1)
         return total
 
-    def workflow_script_dispatch(self):
-        """ dispatch order """
-        self.setDateDispatched(DateTime())
-        self.reindexObject()
 
     security.declareProtected(View, 'getProductUIDs')
 

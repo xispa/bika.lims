@@ -11,15 +11,77 @@ from bika.lims.workflow import wasTransitionPerformed
 from bika.lims.workflow import skip
 
 
+def before_submit(obj):
+    """Fired before a 'submit' transition for the analysis passed in
+
+    If the analysis result is binded to a calculation and the calculation
+    requires results from other analyses (dependencies), the function will try
+    to transition all them first. Note that this function only attemps to
+    transition the dependencies, but is responsability of the guard_submit
+    to evaluate if dependencies are suitable for transition.
+
+    This function is called automatically by
+    bika.lims.workflow.BeoreTransitionEventHandler
+
+    :param obj: the analysis to be transitioned
+    :type obj: AbstractRoutineAnalysis
+    """
+    dependencies = obj.getDependencies()
+    for dependency in dependencies:
+        doActionFor('submit')
+
+
 def after_submit(obj):
     """Method triggered after a 'submit' transition for the analysis passed in
-    is performed. Promotes the submit transition to the Worksheet to which the
-    analysis belongs to. Note that for the worksheet there is already a guard
-    that assures the transition to the worksheet will only be performed if all
+    is performed.
+
+    If there are analyses that depends on this analysis to calculate their
+    results, the function will try to transition them too. Note that this
+    function only attempts the transition of dependents. Is responsability of
+    the guard_submit to evaluate if the dependent is suitable for transition.
+
+    After trying to transition dependents, it fires the reflex rules associated
+    to the analysis and binded to 'submit' transition. Note that as a result,
+    new analyses might be created and assigned to the same Analysis Request or
+    Worksheet the current analysis belongs to.
+
+    After this, tries to transition the Analysis Request the analysis belongs
+    to. Note there is a guard for Analysis Request that will check if the
+    Analysis Request is in a suitable state for such a transition.
+
+    Also promotes the submit transition to the Worksheet to which the analysis
+    belongs to. Note that for the worksheet there is already a guard that
+    assures the transition to the worksheet will only be performed if all
     analyses within the worksheet have already been transitioned.
+
     This function is called automatically by
     bika.lims.workfow.AfterTransitionEventHandler
+
+    :param obj: the analysis that has been transitioned
+    :type obj: AbstractRoutineAnalysis
     """
+    # Try to transition dependents
+    dependents = obj.getDependents()
+    for dependent in dependents:
+        doActionFor(dependent, 'submit')
+
+    # Trigger all the reflex rules process associate to 'submit' transition.
+    # It may create new analysis associated to the same AR of this Analysis,
+    # to the same Worksheet, etc., so is important to call this function before
+    # trying further transitions for Analysis Request and Worksheet.
+    obj.fire_reflex_rules('submit')
+
+    # Escalate to Analysis Request. Note that the guard for submit transition
+    # from Analysis Request will check if the AR can be transitioned, so there
+    # is no need to check here if all analyses within the AR have been
+    # transitioned already.
+    ar = obj.getRequest()
+    doActionFor(ar, 'verify')
+
+    # Ecalate to Worksheet. Note that the guard for submit transition from
+    # Worksheet will check if the Worksheet can be transitioned, so there is no
+    # need to check here if all analyses within the WS have been transitioned
+    # already
     ws = obj.getWorksheet()
     if ws:
         doActionFor(ws, 'submit')
@@ -80,7 +142,7 @@ def after_verify(obj):
     bika.lims.workfow.AfterTransitionEventHandler
     """
     # Do all the reflex rules process
-    obj._reflex_rule_process('verify')
+    obj.fire_reflex_rules('verify')
 
     # Escalate to Analysis Request. Note that the guard for verify transition
     # from Analysis Request will check if the AR can be transitioned, so there
@@ -99,6 +161,7 @@ def after_verify(obj):
 
 
 def after_cancel(obj):
+    # TODO Workflow Analysis - review this function
     if skip(obj, "cancel"):
         return
     workflow = getToolByName(obj, "portal_workflow")
@@ -112,6 +175,7 @@ def after_cancel(obj):
 
 
 def after_reject(obj):
+    # TODO Workflow Analysis - review this function
     if skip(obj, "reject"):
         return
     workflow = getToolByName(obj, "portal_workflow")
@@ -124,6 +188,7 @@ def after_reject(obj):
 
 
 def after_attach(obj):
+    # TODO Workflow Analysis - review this function
     if skip(obj, "attach"):
         return
     workflow = getToolByName(obj, "portal_workflow")

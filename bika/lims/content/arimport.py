@@ -9,6 +9,7 @@ from DateTime.DateTime import DateTime
 from Products.Archetypes.event import ObjectInitializedEvent
 from Products.CMFCore.WorkflowCore import WorkflowException
 from bika.lims import bikaMessageFactory as _
+from bika.lims import deprecated
 from bika.lims.browser import ulocalized_time
 from bika.lims.config import PROJECTNAME
 from bika.lims.content.bikaschema import BikaSchema
@@ -247,32 +248,6 @@ class ARImport(BaseFolder):
         if data and len(data):
             return True
 
-    def workflow_before_validate(self):
-        """This function transposes values from the provided file into the
-        ARImport object's fields, and checks for invalid values.
-
-        If errors are found:
-            - Validation transition is aborted.
-            - Errors are stored on object and displayed to user.
-
-        """
-        # Re-set the errors on this ARImport each time validation is attempted.
-        # When errors are detected they are immediately appended to this field.
-        self.setErrors([])
-
-        self.validate_headers()
-        self.validate_samples()
-
-        if self.getErrors():
-            addStatusMessage(self.REQUEST, _p('Validation errors.'), 'error')
-            transaction.commit()
-            self.REQUEST.response.write(
-                '<script>document.location.href="%s/edit"</script>' % (
-                    self.absolute_url()))
-        self.REQUEST.response.write(
-            '<script>document.location.href="%s/view"</script>' % (
-                self.absolute_url()))
-
     def at_post_edit_script(self):
         workflow = getToolByName(self, 'portal_workflow')
         trans_ids = [t['id'] for t in workflow.getTransitionsFor(self)]
@@ -280,6 +255,7 @@ class ARImport(BaseFolder):
             workflow.doActionFor(self, 'validate')
 
     # TODO - Workflow. Revisit AR creation (should use utils.analysisrequest)
+    @deprecated('[1707] bika.lims.workflow.arimport.events.after_import')
     def workflow_script_import(self):
         """Create objects from valid ARImport
         """

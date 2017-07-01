@@ -20,6 +20,7 @@ from zope.component import adapts
 from zope.interface import implementer
 from zope.interface import implements
 from zope.interface import Interface
+import sys
 import traceback
 
 
@@ -158,12 +159,12 @@ def doActionsFor(instance, actions):
 
 def BeforeTransitionEventHandler(instance, event):
     """ This event is executed before each transition and delegates further
-    actions to 'before_x_transition_event' function if exists in the instance
-    passed in, where 'x' is the id of the event's transition.
+    actions to 'before_<transition_id>' function if exists in the module
+    bika.lims.workflow.<instance_class_name>.
 
-    If the passed in instance has not a function with the abovementioned
-    signature, or if there is no transition for the state change (like the
-    'creation' state, then the function does nothing.
+    If the abovementioned functoin does not exist or if there is no transition
+    for the state change (like the 'creation' state, then the function does
+    nothing.
 
     :param instance: the instance to be transitioned
     :type instance: ATContentType
@@ -175,27 +176,29 @@ def BeforeTransitionEventHandler(instance, event):
     if not event.transition:
         return
 
-    clazzname = instance.__class__.__name__
+    clazzname = instance.portal_type
     currstate = getCurrentState(instance)
     msg = "Transition '{0}' started: {1} '{2}' ({3})".format(
         event.transition.id,  clazzname, instance.getId(), currstate)
     logger.info(msg)
 
-    key = 'before_{0}_transition_event'.format(event.transition.id)
-    before_event = getattr(instance, key, False)
-    if not before_event:
-        # TODO: this conditional is only for backwards compatibility, to be
-        # removed when all workflow_before_* methods in contents are replaced
-        # by the more explicity signature 'before_*_transition_event'
-        key = 'workflow_before_' + event.transition.id
-        before_event = getattr(instance, key, False)
+    # Inspect if bika.lims.workflow.<clazzname>.<events> module exists
+    wfmodule = sys.modules['{}.{}.events'.format(__name__, clazzname.lower())]
+    if not wfmodule:
+        return
 
+    # Inspect if before_<transition_id> function exists in the above module
+    key = 'before_{0}'.format(event.transition.id)
+    before_event = getattr(wfmodule, key, False)
     if not before_event:
         return
 
-    msg = "BeforeTransition: '{0}.{1}'".format(clazzname, key)
-    logger.info(msg)
-    before_event()
+    # Fire the before_event
+    msg = "BeforeTransition for {0} ({1}) {2}: {3}'"
+    fullname = '{0}.{1}'.format(wfmodule.__name__, key)
+    logger.info(msg.format(clazzname, instance.getId(), 'started', fullname))
+    before_event(instance)
+    logger.info(msg.format(clazzname, instance.getId(), 'finished', fullname))
 
 
 def AfterTransitionEventHandler(instance, event):
@@ -223,7 +226,7 @@ def AfterTransitionEventHandler(instance, event):
     if skip(instance, event.transition.id):
         return
 
-    clazzname = instance.__class__.__name__
+    clazzname = instance.portal_type
     currstate = getCurrentState(instance)
     msg = "Transition '{0}' finished: '{1}' '{2}' ({3})".format(
         event.transition.id,  clazzname, instance.getId(), currstate)
@@ -234,21 +237,24 @@ def AfterTransitionEventHandler(instance, event):
     # before going forward.
     instance.reindexObject()
 
-    key = 'after_{0}_transition_event'.format(event.transition.id)
-    after_event = getattr(instance, key, False)
-    if not after_event:
-        # TODO Workflow. this conditional is only for backwards compatibility,
-        # to be removed when all workflow_script_* methods in contents are
-        # replaced by the more explicity signature 'after_*_transition_event'
-        key = 'workflow_script_' + event.transition.id
-        after_event = getattr(instance, key, False)
+    # Inspect if bika.lims.workflow.<clazzname>.<events> module exists
+    wfmodule = sys.modules['{}.{}.events'.format(__name__, clazzname.lower())]
+    if not wfmodule:
+        return
 
+    # Inspect if after_<transition_id> function exists in the above module
+    key = 'after_{0}'.format(event.transition.id)
+    after_event = getattr(wfmodule, key, False)
     if not after_event:
         return
 
-    msg = "AfterTransition: '{0}.{1}'".format(clazzname, key)
-    logger.info(msg)
-    after_event()
+    # Fire the after_event
+    msg = "AfterTransition for {0} ({1}) {2}: {3}'"
+    fullname = '{0}.{1}'.format(wfmodule.__name__, key)
+    logger.info(msg.format(clazzname, instance.getId(), 'started', fullname))
+    after_event(instance)
+    logger.info(msg.format(clazzname, instance.getId(), 'finished', fullname))
+
 
 def get_workflow_actions(obj):
     """ Compile a list of possible workflow transitions for this object

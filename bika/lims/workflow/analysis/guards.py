@@ -2,7 +2,58 @@ from Products.CMFCore.utils import getToolByName
 from bika.lims import logger
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import isBasicTransitionAllowed
+from bika.lims.workflow import wasTransitionPerformed
 from bika.lims.permissions import Unassign
+
+
+def submit(obj):
+    """Returns true if the 'submit' transition can be performed to the analysis
+    passed in.
+
+    Returns True if the following conditions are met:
+    - The analysis is active (neither inactive nor cancelled state)
+    - The current user has enough privileges to fire the 'submit' transition
+    - A non-empty result for this analysis has been set or, if the result of
+      the analysis is binded to a calculation, results of all dependencies and
+      values for interim fields are not empty.
+
+    :param obj: the analysis for which the submit transition must be evaluated
+    :type obj: AbstractRoutineAnalysis
+    :returns: True or False
+    :rtype: bool
+    """
+    if not isBasictransitionAllowed(obj):
+        return False
+
+    # If the state is sample_due, only permit the submit transition if the
+    # point of capture is 'field'
+    state = getCurrentState(oj)
+    if state == 'sample_due' and obj.getPointOfCapture() != 'field':
+        return False
+
+    # If the analysis has a result, then we can assume the rest of conditions
+    # regarding calculation and dependencies have been met, so there is no
+    # need of further checks.
+    if obj.getResult():
+        return True
+
+    # If there is a calculation associated to this analysis, be sure the
+    # interim fields have values set.
+    calculation = obj.getCalculation()
+    if calculation and not calculation.getInterimFields():
+        return False
+
+    # Check if all dependencies have been submitted already or are ready
+    # Remember dependencies are those analyses required for the calculation of
+    # the result of the current analysis.
+    dependencies = obj.getDependencies()
+    for dep in dependencies:
+        if not wasTransitionPerformed(dep) or not submit(dep):
+            # There is at least one dependency that hasn't been submitted yet
+            # or cannot be submitted.
+            return False
+
+    return True
 
 
 def sample(obj):
@@ -11,6 +62,7 @@ def sample(obj):
     :returns: true or false
     """
     return isBasicTransitionAllowed(obj)
+
 
 def retract(obj):
     """ Returns true if the sample transition can be performed for the sample

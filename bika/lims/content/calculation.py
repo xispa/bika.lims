@@ -14,6 +14,7 @@ from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.utils import safe_unicode
 from bika.lims import bikaMessageFactory as _
+from bika.lims import deprecated
 from bika.lims.browser.fields import InterimFieldsField
 from bika.lims.browser.fields import UIDReferenceField
 from bika.lims.browser.widgets import RecordsWidget as BikaRecordsWidget
@@ -182,6 +183,7 @@ class Calculation(BaseFolder, HistoryAwareMixin):
             deps.append(service)
         return deps
 
+    @deprecated('[1707] bika.lims.workflow.calculation.events.after_activate')
     def workflow_script_activate(self):
         wf = getToolByName(self, 'portal_workflow')
         pu = getToolByName(self, 'plone_utils')
@@ -200,6 +202,7 @@ class Calculation(BaseFolder, HistoryAwareMixin):
             transaction.get().abort()
             raise WorkflowException
 
+    @deprecated('[1707] bika.lims.workflow.calculation.events.after_deactivate')
     def workflow_script_deactivate(self):
         bsc = getToolByName(self, 'bika_setup_catalog')
         pu = getToolByName(self, 'plone_utils')

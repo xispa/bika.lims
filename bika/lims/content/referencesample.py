@@ -393,15 +393,5 @@ class ReferenceSample(BaseFolder):
                     specstr = specs[0]
         return specstr
 
-    # XXX workflow methods
-    def workflow_script_expire(self):
-        """ expire sample """
-        self.setDateExpired(DateTime())
-        self.reindexObject()
-
-    def workflow_script_dispose(self):
-        """ dispose sample """
-        self.setDateDisposed(DateTime())
-        self.reindexObject()
 
 registerType(ReferenceSample, PROJECTNAME)

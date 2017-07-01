@@ -907,21 +907,7 @@ class Worksheet(BaseFolder, HistoryAwareMixin):
             states[w.state_var] = state
         return states
 
-    @deprecated('[1705] Use bika.lims.workflow.worksheet.after_submit')
-    @security.public
-    def workflow_script_submit(self):
-        events.after_submit(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.worksheet.after_retract')
-    @security.public
-    def workflow_script_retract(self):
-        events.after_retract(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.worksheet.after_verify')
-    @security.public
-    def workflow_script_verify(self):
-        events.after_verify(self)
-
+    @deprecated('[1707] bika.lims.workflow.worksheet.events.after_reject')
     def workflow_script_reject(self):
         """Copy real analyses to RejectAnalysis, with link to real
            create a new worksheet, with the original analyses, and new

@@ -445,7 +445,7 @@ schema = BikaSchema.copy() + Schema((
     # cases the user may want to change the Received Date.
     # AnalysisRequest and Sample's DateReceived fields needn't to have
     # the same value.
-    # This field is updated in workflow_script_receive method.
+    # This field is updated in bika.lims.workflow.sample.events.after_receive
     DateTimeField('DateReceived',
         mode="rw",
         read_permission=permissions.View,
@@ -852,75 +852,6 @@ class Sample(BaseFolder, HistoryAwareMixin):
             workflow = wf.getWorkflowById(workflow_id)
             prep_workflows.append([workflow_id, workflow.title])
         return DisplayList(prep_workflows)
-
-    @deprecated('[1705] Use events.after_no_sampling_workflow from '
-                'bika.lims.workflow.sample')
-    @security.public
-    def workflow_script_no_sampling_workflow(self):
-        events.after_no_sampling_workflow(self)
-
-    @deprecated('[1705] Use events.after_sampling_workflow from '
-                'bika.lims.workflow.sample')
-    @security.public
-    def workflow_script_sampling_workflow(self):
-        events.after_sampling_workflow(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_sample')
-    @security.public
-    def workflow_script_sample(self):
-        events.after_sample(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_sample_due')
-    @security.public
-    def workflow_script_sample_due(self):
-        events.after_sample_due(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_receive')
-    @security.public
-    def workflow_script_receive(self):
-        events.after_receive(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_preserve')
-    @security.public
-    def workflow_script_preserve(self):
-        events.after_preserve(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_expire')
-    @security.public
-    def workflow_script_expire(self):
-        events.after_expire(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_dispose')
-    @security.public
-    def workflow_script_dispose(self):
-        events.after_dispose(self)
-
-    @deprecated('[1705] Use events.after_to_be_preserved from '
-                'bika.lims.workflow.sample')
-    @security.public
-    def workflow_script_to_be_preserved(self):
-        events.after_to_be_preserved(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_reinstate')
-    @security.public
-    def workflow_script_reinstate(self):
-        events.after_reinstate(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_cancel')
-    @security.public
-    def workflow_script_cancel(self):
-        events.after_cancel(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.events.after_reject')
-    @security.public
-    def workflow_script_reject(self):
-        events.after_reject(self)
-
-    @deprecated('[1705] Use events.after_schedule_sampling from '
-                'bika.lims.workflow.sample')
-    @security.public
-    def workflow_script_schedule_sampling(self):
-        events.after_schedule_sampling(self)
 
     @deprecated('[1705] Use guards.to_be_preserved from '
                 'bika.lims.workflow.sample')

@@ -44,3 +44,8 @@ def after_retract(obj):
     :type obj: Worksheet
     """
     pass
+
+
+def after_reject(obj):
+    # TODO Workflow - Worksheet. Review this function
+    obj.workflow_script_reject()

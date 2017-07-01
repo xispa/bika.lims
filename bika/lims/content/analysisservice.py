@@ -15,6 +15,7 @@ from Products.Archetypes.public import BooleanField, BooleanWidget, \
 from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.CMFCore.utils import getToolByName
 from bika.lims import PMF, bikaMessageFactory as _
+from bika.lims import deprecated
 from bika.lims.browser.fields import UIDReferenceField
 from bika.lims.browser.widgets.partitionsetupwidget import PartitionSetupWidget
 from bika.lims.browser.widgets.referencewidget import ReferenceWidget
@@ -487,6 +488,7 @@ class AnalysisService(AbstractBaseAnalysis):
         items.sort(lambda x, y: cmp(x[1], y[1]))
         return DisplayList(list(items))
 
+    @deprecated('[1707] See bika.lims.workflow.analysisservice.after_activate')
     def workflow_script_activate(self):
         workflow = getToolByName(self, 'portal_workflow')
         pu = getToolByName(self, 'plone_utils')
@@ -501,6 +503,7 @@ class AnalysisService(AbstractBaseAnalysis):
             transaction.get().abort()
             raise WorkflowException
 
+    @deprecated('[1707] See bika.lims.workflow.analysisservice.after_activate')
     def workflow_scipt_deactivate(self):
         bsc = getToolByName(self, 'bika_setup_catalog')
         pu = getToolByName(self, 'plone_utils')

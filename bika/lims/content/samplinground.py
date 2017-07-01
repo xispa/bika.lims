@@ -4,6 +4,7 @@
 # Some rights reserved. See LICENSE.txt, AUTHORS.txt.
 
 from bika.lims import _
+from bika.lims import deprecated
 from plone.supermodel import model
 from plone import api
 from plone.indexer import indexer
@@ -419,19 +420,3 @@ class SamplingRound(Item):
             else:
                 return False
         return checkPermission(ModifyPortalContent, self) or checkPermission(AddPortalContent, self)
-
-    def workflow_script_cancel(self):
-        """
-        When the round is cancelled, all its associated Samples and ARs are cancelled by the system.
-        """
-        if skip(self, "cancel"):
-            return
-        self.reindexObject(idxs=["cancellation_state", ])
-        # deactivate all analysis requests in this sampling round.
-        analysis_requests = self.getAnalysisRequests()
-        for ar in analysis_requests:
-            ar_obj = ar.getObject()
-            workflow = getToolByName(self, 'portal_workflow')
-            if workflow.getInfoFor(ar_obj, 'cancellation_state') != 'cancelled':
-                doActionFor(ar.getObject(), 'cancel')
-                doActionFor(ar.getObject().getSample(), 'cancel')
