@@ -853,32 +853,5 @@ class Sample(BaseFolder, HistoryAwareMixin):
             prep_workflows.append([workflow_id, workflow.title])
         return DisplayList(prep_workflows)
 
-    @deprecated('[1705] Use guards.to_be_preserved from '
-                'bika.lims.workflow.sample')
-    @security.public
-    def guard_to_be_preserved(self):
-        return guards.to_be_preserved(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.guards.receive')
-    @security.public
-    def guard_receive_transition(self):
-        return guards.receive(self)
-
-    @deprecated('[1705] Use bika.lims.workflow.sample.guards.sample_prep')
-    @security.public
-    def guard_sample_prep_transition(self):
-        return guards.sample_prep(self)
-
-    @deprecated('[1705] Use guards.sample_prep_complete from '
-                'bika.lims.workflow.sample')
-    @security.public
-    def guard_sample_prep_complete_transition(self):
-        return guards.sample_prep_complete(self)
-
-    @deprecated('[1705] Use guards.schedule_sampling from '
-                'bika.lims.workflow.sample')
-    @security.public
-    def guard_schedule_sampling_transition(self):
-        return guards.schedule_sampling(self)
 
 atapi.registerType(Sample, PROJECTNAME)

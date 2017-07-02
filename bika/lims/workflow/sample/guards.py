@@ -5,7 +5,12 @@ from bika.lims.workflow import doActionFor
 from bika.lims.workflow import isBasicTransitionAllowed
 
 
-def schedule_sampling(obj):
+def guard_to_be_preserved(obj):
+    # TODO Worlkflow - Sample guard_to_be_preserved needs some love
+    return True
+
+
+def guard_schedule_sampling(obj):
     """
     Prevent the transition if:
     - if the user isn't part of the sampling coordinators group
@@ -19,11 +24,11 @@ def schedule_sampling(obj):
     return False
 
 
-def receive(obj):
+def guard_receive(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def sample_prep(obj):
+def guard_sample_prep(obj):
     """Allow the sampleprep automatic transition to fire.
     """
     if not isBasicTransitionAllowed(obj):
@@ -31,7 +36,7 @@ def sample_prep(obj):
     return obj.getPreparationWorkflow()
 
 
-def sample_prep_complete(obj):
+def guard_sample_prep_complete(obj):
     """ This relies on user created workflow.  This function must
     defend against user errors.
 
