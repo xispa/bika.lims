@@ -323,30 +323,6 @@ class Batch(ATFolder):
         labels = [label.getObject().title for label in uc(UID=uids)]
         return labels
 
-    def workflow_guard_open(self):
-        """ Permitted if current review_state is 'closed' or 'cancelled'
-            The open transition is already controlled by 'Bika: Reopen Batch'
-            permission, but left here for security reasons and also for the
-            capability of being expanded/overrided by child products or
-            instance-specific-needs.
-        """
-        revstatus = getCurrentState(self, StateFlow.review)
-        canstatus = getCurrentState(self, StateFlow.cancellation)
-        return revstatus == BatchState.closed \
-            and canstatus == CancellationState.active
-
-    def workflow_guard_close(self):
-        """ Permitted if current review_state is 'open'.
-            The close transition is already controlled by 'Bika: Close Batch'
-            permission, but left here for security reasons and also for the
-            capability of being expanded/overrided by child products or
-            instance-specific needs.
-        """
-        revstatus = getCurrentState(self, StateFlow.review)
-        canstatus = getCurrentState(self, StateFlow.cancellation)
-        return revstatus == BatchState.open \
-            and canstatus == CancellationState.active
-
 
 registerType(Batch, PROJECTNAME)
 
