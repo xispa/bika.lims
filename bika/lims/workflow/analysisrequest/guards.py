@@ -1,16 +1,11 @@
-from Products.CMFCore.utils import getToolByName
-
-from bika.lims import logger
-from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import isActive
 from bika.lims.workflow import isBasicTransitionAllowed
 from bika.lims.workflow import isTransitionAllowed
 from bika.lims.workflow import wasTransitionPerformed
-from bika.lims.workflow.analysis import guards as analysis_guards
 
 
-def to_be_preserved(obj):
+def guard_to_be_preserved(obj):
     """ Returns True if the Sample from this AR needs to be preserved
     Returns false if the Analysis Request has no Sample assigned yet or
     does not need to be preserved
@@ -20,7 +15,7 @@ def to_be_preserved(obj):
     return sample and sample.guard_to_be_preserved()
 
 
-def schedule_sampling(obj):
+def guard_schedule_sampling(obj):
     """
     Prevent the transition if:
     - if the user isn't part of the sampling coordinators group
@@ -34,21 +29,25 @@ def schedule_sampling(obj):
     return False
 
 
-def receive(obj):
+def guard_receive(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def sample_prep(obj):
+def guard_sample_prep(obj):
     sample = obj.getSample()
-    return sample.guard_sample_prep_transition()
+    if not sample:
+        return False
+    return isTransitionAllowed(sample, 'sample_prep')
 
 
-def sample_prep_complete(obj):
+def guard_sample_prep_complete(obj):
     sample = obj.getSample()
-    return sample.guard_sample_prep_complete_transition()
+    if not sample:
+        return False
+    return isTransitionAllowed(sample, 'sample_prep_complete')
 
 
-def assign(obj):
+def guard_assign(obj):
     """Allow or disallow transition depending on our children's states
     """
     # TODO Workflow Assign AR - To revisit. Is there any reason why we want an
@@ -61,7 +60,7 @@ def assign(obj):
     return True
 
 
-def unassign(obj):
+def guard_unassign(obj):
     """Allow or disallow transition depending on our children's states
     """
     # TODO Workflow UnAssign AR - To revisit. Is there any reason why we want an
@@ -74,7 +73,7 @@ def unassign(obj):
     return True
 
 
-def verify(obj):
+def guard_verify(obj):
     """Returns True if 'verify' transition can be applied to the Analysis
     Request passed in. This is, returns true if all the analyses that contains
     have already been verified. Those analyses that are in an inactive state
@@ -117,7 +116,7 @@ def verify(obj):
     return len(analyses) - invalid > 0
 
 
-def prepublish(obj):
+def guard_prepublish(obj):
     """Returns True if 'prepublish' transition can be applied to the Analysis
     Request passed in.
     Returns true if the Analysis Request is active (not in a cancelled/inactive
@@ -154,7 +153,7 @@ def prepublish(obj):
     return False
 
 
-def publish(obj):
+def guard_publish(obj):
     """Returns True if 'publish' transition can be applied to the Analysis
     Request passed in. Returns true if the Analysis Request is active (not in
     a cancelled/inactive state). As long as 'publish' transition, in accordance
