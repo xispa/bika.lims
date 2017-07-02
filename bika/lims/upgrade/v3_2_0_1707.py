@@ -42,8 +42,25 @@ def set_guard_expressions(portal):
     """
     logger.info('Renaming guard expressions...')
     wtool = get_tool('portal_workflow')
+    targetwfids = ['bika_analysis_workflow',
+                   'bika_ar_workflow',
+                   'bika_arimport_workflow',
+                   'bika_batch_workflow',
+                   'bika_cancellation_workflow',
+                   'bika_duplicateanalysis_workflow',
+                   'bika_inactive_workflow',
+                   'bika_order_workflow',
+                   'bika_publication_workflow',
+                   'bika_referenceanalysis_workflow',
+                   'bika_referencesample_workflow',
+                   'bika_sample_workflow',
+                   'bika_samplinground_workflow',
+                   'bika_worksheet_workflow',
+                   'sampleprep_simple']
     workflowids = wtool.getWorkflowIds()
     for wfid in workflowids:
+        if wfid not in targetwfids:
+            continue
         workflow = wtool.getWorkflowById(wfid)
         transitions = workflow.transitions
         for transid in transitions.objectIds():
