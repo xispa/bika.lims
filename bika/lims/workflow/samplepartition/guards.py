@@ -1,4 +1,3 @@
-from Products.CMFCore.utils import getToolByName
 from bika.lims.workflow import isBasicTransitionAllowed
 
 
