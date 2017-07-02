@@ -1,7 +1,5 @@
 from Products.CMFCore.utils import getToolByName
-
 from bika.lims import logger
-from bika.lims.workflow import doActionFor
 from bika.lims.workflow import isBasicTransitionAllowed
 
 
@@ -72,3 +70,9 @@ def guard_sample_prep_complete(obj):
     if len(transitions) > 0:
         return False
     return True
+
+
+def guard_reject(obj):
+    if not isBasicTransitionAllowed(obj):
+        return False
+    return obj.bika_setup.isRejectionWorkflowEnabled()
