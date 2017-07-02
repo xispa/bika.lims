@@ -3,10 +3,12 @@ from bika.lims import logger
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import isBasicTransitionAllowed
 from bika.lims.workflow import wasTransitionPerformed
+from bika.lims.workflow.samplepartition.events import guard_to_be_preserved \
+    as samplepartition_guard_to_be_preserved
 from bika.lims.permissions import Unassign
 
 
-def submit(obj):
+def guard_submit(obj):
     """Returns true if the 'submit' transition can be performed to the analysis
     passed in.
 
@@ -48,7 +50,7 @@ def submit(obj):
     # the result of the current analysis.
     dependencies = obj.getDependencies()
     for dep in dependencies:
-        if not wasTransitionPerformed(dep) or not submit(dep):
+        if not wasTransitionPerformed(dep) or not guard_submit(dep):
             # There is at least one dependency that hasn't been submitted yet
             # or cannot be submitted.
             return False
@@ -56,7 +58,7 @@ def submit(obj):
     return True
 
 
-def sample(obj):
+def guard_sample(obj):
     """ Returns true if the sample transition can be performed for the sample
     passed in.
     :returns: true or false
@@ -64,7 +66,18 @@ def sample(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def retract(obj):
+def guard_to_be_preserved(obj):
+    """Returns if the Sample Partition to which this Analysis belongs needs
+    to be prepreserved, so the Analysis. If the analysis has no Sample
+    Partition assigned, returns False.
+    Delegates to Sample Partitions's guard_to_be_preserved
+    """
+    part = obj.getSamplePartition()
+    if not part:
+        return False
+    return samplepartition_guard_to_be_preserved(obj)
+
+def guard_retract(obj):
     """ Returns true if the sample transition can be performed for the sample
     passed in.
     :returns: true or false
@@ -72,19 +85,19 @@ def retract(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def sample_prep(obj):
+def guard_sample_prep(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def sample_prep_complete(obj):
+def guard_sample_prep_complete(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def receive(obj):
+def guard_receive(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def publish(obj):
+def guard_publish(obj):
     """ Returns true if the 'publish' transition can be performed to the
     analysis passed in.
     In accordance with bika_analysis_workflow, 'publish'
@@ -97,11 +110,11 @@ def publish(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def import_transition(obj):
+def guard_import(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def attach(obj):
+def guard_attach(obj):
     if not isBasicTransitionAllowed(obj):
         return False
     if not obj.getAttachment():
@@ -109,11 +122,11 @@ def attach(obj):
     return True
 
 
-def assign(obj):
+def guard_assign(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def unassign(obj):
+def guard_unassign(obj):
     """Check permission against parent worksheet
     """
     mtool = getToolByName(obj, "portal_membership")
@@ -129,7 +142,7 @@ def unassign(obj):
     return False
 
 
-def verify(obj):
+def guard_verify(obj):
     if not isBasicTransitionAllowed(obj):
         return False
 
@@ -141,7 +154,7 @@ def verify(obj):
     return False
 
 # TODO Workflow Analysis - Enable and review together with bika_listing stuff
-def new_verify(obj):
+def guard_new_verify(obj):
     """
     Checks if the verify transition can be performed to the Analysis passed in
     by the current user depending on the user roles, the current status of the

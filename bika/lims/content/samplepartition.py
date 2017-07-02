@@ -111,23 +111,5 @@ class SamplePartition(BaseContent, HistoryAwareMixin):
         dis_date = DateSampled and dt2DT(DT2dt(DateSampled) + td) or None
         return dis_date
 
-    def guard_to_be_preserved(self):
-        """ Returns True if this Sample Partition needs to be preserved
-        Returns false if no analyses have been assigned yet, or the Sample
-        Partition has Preservation and Container objects assigned with the
-        PrePreserved option set for the latter.
-        """
-        if not self.getPreservation():
-            return False
-
-        if not self.getAnalyses():
-            return False
-
-        container = self.getContainer()
-        if container and container.getPrePreserved():
-            return False
-
-        return True
-
 
 registerType(SamplePartition, PROJECTNAME)
