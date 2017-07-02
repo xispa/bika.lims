@@ -241,13 +241,6 @@ class ARImport(BaseFolder):
     def _renameAfterCreation(self, check_auto_id=False):
         renameAfterCreation(self)
 
-    def guard_validate_transition(self):
-        """We may only attempt validation if file data has been uploaded.
-        """
-        data = self.getOriginalFile()
-        if data and len(data):
-            return True
-
     def at_post_edit_script(self):
         workflow = getToolByName(self, 'portal_workflow')
         trans_ids = [t['id'] for t in workflow.getTransitionsFor(self)]
