@@ -1,10 +1,7 @@
 from Products.CMFCore.utils import getToolByName
-from bika.lims import logger
-from bika.lims.workflow import doActionFor
 from bika.lims.workflow import isBasicTransitionAllowed
+from bika.lims.workflow import isTransitionAllowed
 from bika.lims.workflow import wasTransitionPerformed
-from bika.lims.workflow.samplepartition.events import guard_to_be_preserved \
-    as samplepartition_guard_to_be_preserved
 from bika.lims.permissions import Unassign
 
 
@@ -50,10 +47,11 @@ def guard_submit(obj):
     # the result of the current analysis.
     dependencies = obj.getDependencies()
     for dep in dependencies:
-        if not wasTransitionPerformed(dep) or not guard_submit(dep):
-            # There is at least one dependency that hasn't been submitted yet
-            # or cannot be submitted.
-            return False
+        if not wasTransitionPerformed(dep, 'submit'):
+            if not isTransitionAllowed(dep, 'submit'):
+                # There is at least one dependency that hasn't been submitted
+                # yet or cannot be submitted.
+                return False
 
     return True
 
@@ -75,7 +73,7 @@ def guard_to_be_preserved(obj):
     part = obj.getSamplePartition()
     if not part:
         return False
-    return samplepartition_guard_to_be_preserved(obj)
+    return isTransitionAllowed(part, 'to_be_preserved')
 
 def guard_retract(obj):
     """ Returns true if the sample transition can be performed for the sample
