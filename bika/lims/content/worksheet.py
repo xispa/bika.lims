@@ -887,10 +887,6 @@ class Worksheet(BaseFolder, HistoryAwareMixin):
                       if not a.isUserAllowedToVerify(member)]
         return not notallowed
 
-    @deprecated('[1705] Use bika.lims.workflow.worksheet.guards.verify')
-    @security.public
-    def guard_verify_transition(self):
-        return guards.verify(self)
 
     def getObjectWorkflowStates(self):
         """
