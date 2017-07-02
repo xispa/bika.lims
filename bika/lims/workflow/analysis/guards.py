@@ -151,6 +151,13 @@ def guard_verify(obj):
 
     return False
 
+
+def guard_reject(obj):
+    if not isBasicTransitionAllowed(obj):
+        return False
+    return obj.bika_setup.isRejectionWorkflowEnabled()
+
+
 # TODO Workflow Analysis - Enable and review together with bika_listing stuff
 def guard_new_verify(obj):
     """
