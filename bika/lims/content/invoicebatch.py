@@ -109,16 +109,6 @@ class InvoiceBatch(BaseFolder):
         # noinspection PyCallingNonCallable
         return DateTime()
 
-    def guard_cancel_transition(self):
-        if not isBasicTransitionAllowed(self):
-            return False
-        return True
-
-    def guard_reinstate_transition(self):
-        if not isBasicTransitionAllowed(self):
-            return False
-        return True
-
 
 registerType(InvoiceBatch, PROJECTNAME)
 
