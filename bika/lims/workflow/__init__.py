@@ -23,6 +23,16 @@ from zope.interface import Interface
 import sys
 import traceback
 
+# This is required to authorize AccessControl.ZopeGuards to access to this
+# module (bika.lims.workflow) and function/s via skin's python scripts.
+# In this particular case, the function GuardHandler is accessed through
+# bika/lims/skins/bika/guard_handler.py, which is called by guard expressions
+# from workflows:
+#       python: here.guard_handler(state_change.transition.id)
+from AccessControl.SecurityInfo import ModuleSecurityInfo
+security = ModuleSecurityInfo('bika.lims.workflow')
+security.declarePublic('GuardHandler')
+
 
 def skip(instance, action, peek=False, unskip=False):
     """Returns True if the transition is to be SKIPPED
@@ -155,6 +165,61 @@ def doActionsFor(instance, actions):
             continue
         startpoint = True
         doActionFor(instance, action)
+
+
+def GuardHandler(instance, transition_id):
+    """Generic workflow guard handler that returns true if the transition_id
+    passed in can be performed to the instance passed in.
+
+    This function is called automatically by a Script (Python) located at
+    bika/lims/skins/guard_handler.py, which in turn is fired by Zope when an
+    expression like "python:here.guard_handler('<transition_id>')" is set to
+    any given guard (used by default in all bika's DC Workflow guards).
+
+    Walksthorugh bika.lims.workflow.<obj_type>.guards and looks for a function
+    that matches with 'guard_<transition_id>'. If found, calls the function and
+    returns its value (true or false). If not fouund, returns True by default.
+
+    Example:
+    If exists an action with id 'publish' for a given workflow, and there is a
+    guard expression set for this transition as follows:
+
+        python: here.guard_handler('publish')
+
+    When Zope fires this expression to evaluate if the transition 'publish' can
+    be performed to a given Analysis Request, this function will try to find
+    the following function:
+
+        bika.lims.workflow.analysisrequest.guards.guard_publish(obj)
+
+        (where obj is the Analysis Request object)
+
+    If found, this function will be called and the result returned. Otherwise,
+    will return True.
+
+    :param instance: the object for which the transition_id has to be evaluated
+    :param transition_id: the id of the transition
+    :type instance: ATContentType
+    :type transition_id: string
+    :return: true if the transition can be performed to the passed in instance
+    :rtype: bool
+    """
+    clazzname = instance.portal_type
+    logger.info("GuardHandler {0}.guard_{1} ({2})".format(clazzname,
+                transition_id, instance.getId()))
+
+    # Inspect if bika.lims.workflow.<clazzname>.<guards> module exists
+    wfmodule = sys.modules['{}.{}.guards'.format(__name__, clazzname.lower())]
+    if not wfmodule:
+        return True
+
+    # Inspect if guard_<transition_id> function exists in the above module
+    key = 'guard_{0}'.format(transition_id)
+    guard = getattr(wfmodule, key, False)
+    if not guard:
+        return True
+
+    return guard(instance)
 
 
 def BeforeTransitionEventHandler(instance, event):

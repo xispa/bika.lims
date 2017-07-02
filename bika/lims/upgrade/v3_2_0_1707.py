@@ -30,7 +30,7 @@ def upgrade(tool):
 
     logger.info("Upgrading {0}: {1} -> {2}".format(product, ufrom, version))
 
-    # Renames some guard expressions from several transitions
+    # Rename all guard expressions to python:here.guard_handler('<action_id>')
     set_guard_expressions(portal)
 
     logger.info("{0} upgraded to version {1}".format(product, version))
@@ -38,24 +38,23 @@ def upgrade(tool):
 
 
 def set_guard_expressions(portal):
-    """Rename guard expressions of some workflow transitions
+    """Rename all guard expressions to python:here.guard_handler('<action_id>')
     """
     logger.info('Renaming guard expressions...')
-    torename = {
-        'bika_ar_workflow.publish': 'python:here.guard_publish_transition()',
-    }
     wtool = get_tool('portal_workflow')
     workflowids = wtool.getWorkflowIds()
     for wfid in workflowids:
         workflow = wtool.getWorkflowById(wfid)
         transitions = workflow.transitions
         for transid in transitions.objectIds():
-            for torenid, newguard in torename.items():
-                tokens = torenid.split('.')
-                if tokens[0] == wfid and tokens[1] == transid:
-                    transition = transitions[transid]
-                    guard = transition.getGuard()
-                    guard.expr = Expression(newguard)
-                    transition.guard = guard
-                    logger.info("Guard from transition '{0}' set to '{1}'"
-                                .format(torenid, newguard))
+            newguard = "python:here.guard_handler('{0}')".format(transid)
+            transition = transitions[transid]
+            guard = transition.getGuard()
+            oldexpr = 'None'
+            if guard:
+                oldexpr = guard.expr.text if guard.expr else 'None'
+            guard.expr = Expression(newguard)
+            transition.guard = guard
+            msg = "Guard expression for '{0}.{1}' changed: {2} -> {3}".format(
+                    wfid, transid, oldexpr, newguard)
+            logger.info(msg)
