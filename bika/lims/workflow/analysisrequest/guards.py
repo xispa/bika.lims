@@ -162,3 +162,9 @@ def guard_publish(obj):
     :returns: true or false
     """
     return isBasicTransitionAllowed(obj)
+
+
+def guard_reject(obj):
+    if not isBasicTransitionAllowed(obj):
+        return False
+    return obj.bika_setup.isRejectionWorkflowEnabled()
