@@ -67,6 +67,8 @@ def set_guard_expressions(portal):
             oldexpr = 'None'
             if guard:
                 oldexpr = guard.expr.text if guard.expr else 'None'
+            if oldexpr == newguard:
+                continue
             guard.expr = Expression(newguard)
             transition.guard = guard
             msg = "Guard expression for '{0}.{1}' changed: {2} -> {3}".format(
