@@ -252,7 +252,7 @@ function BikaListingTableView() {
 		var checked = $(blst).find("input[type='checkbox'][id*='_cb_']:checked");
 		$(checked).each(function(e) {
 			var transitions = $(this).attr('data-valid_transitions');
-			transitions = transitions.split(',');
+			transitions = transitions === '' ? [] : transitions.split(',');
 			if (restricted_transitions.length > 0) {
 				// Do not want transitions other than those defined in bikalisting
 				transitions = transitions.filter(function(el) {
