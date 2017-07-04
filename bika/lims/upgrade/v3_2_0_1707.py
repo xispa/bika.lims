@@ -89,7 +89,8 @@ def fix_workflow_transitions(portal):
     logger.info('Fix workflow transitions...')
     inconsistences = {
         'bika_sample_workflow': {
-            'sample_due': ['receive', 'reject']
+            'sample_due':      ['receive', 'reject'],
+            'sample_received': ['expire', 'sample_prep', 'reject']
         }
     }
     wtool = get_tool('portal_workflow')
