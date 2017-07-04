@@ -57,10 +57,7 @@ def set_guard_expressions(portal):
                    'bika_samplinground_workflow',
                    'bika_worksheet_workflow',
                    'sampleprep_simple']
-    workflowids = wtool.getWorkflowIds()
-    for wfid in workflowids:
-        if wfid not in targetwfids:
-            continue
+    for wfid in targetwfids:
         workflow = wtool.getWorkflowById(wfid)
         transitions = workflow.transitions
         for transid in transitions.objectIds():
