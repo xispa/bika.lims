@@ -209,16 +209,14 @@ def GuardHandler(instance, transition_id):
 
     # Inspect if bika.lims.workflow.<clazzname>.<guards> module exists
     modulekey = '{}.{}.guards'.format(__name__, clazzname.lower())
-    wfmodule = sys.modules[modulekey]
+    wfmodule = sys.modules.get(modulekey, None)
     if not wfmodule:
-        logger.warning("No module found: {1}".format(modulekey))
         return True
 
     # Inspect if guard_<transition_id> function exists in the above module
     key = 'guard_{0}'.format(transition_id)
     guard = getattr(wfmodule, key, False)
     if not guard:
-        logger.warning("No guard found: {0}.{1}".format(modulekey, key))
         return True
 
     return guard(instance)
@@ -250,7 +248,8 @@ def BeforeTransitionEventHandler(instance, event):
     logger.info(msg)
 
     # Inspect if bika.lims.workflow.<clazzname>.<events> module exists
-    wfmodule = sys.modules['{}.{}.events'.format(__name__, clazzname.lower())]
+    modulekey = '{}.{}.events'.format(__name__, clazzname.lower())
+    wfmodule = sys.modules.get(modulekey, None)
     if not wfmodule:
         return
 
@@ -301,7 +300,8 @@ def AfterTransitionEventHandler(instance, event):
     instance.reindexObject()
 
     # Inspect if bika.lims.workflow.<clazzname>.<events> module exists
-    wfmodule = sys.modules['{}.{}.events'.format(__name__, clazzname.lower())]
+    modulekey = '{}.{}.events'.format(__name__, clazzname.lower())
+    wfmodule = sys.modules.get(modulekey, None)
     if not wfmodule:
         return
 
