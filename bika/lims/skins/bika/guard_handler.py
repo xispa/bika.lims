@@ -7,4 +7,4 @@
 ##parameters=transition_id=None
 ##title=guard_handler Script
 from bika.lims.workflow import GuardHandler
-GuardHandler(context, transition_id)
+return GuardHandler(context, transition_id)
