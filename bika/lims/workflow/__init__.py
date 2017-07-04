@@ -205,18 +205,19 @@ def GuardHandler(instance, transition_id):
     :rtype: bool
     """
     clazzname = instance.portal_type
-    logger.info("GuardHandler {0}.guard_{1} ({2})".format(clazzname,
-                transition_id, instance.getId()))
 
     # Inspect if bika.lims.workflow.<clazzname>.<guards> module exists
-    wfmodule = sys.modules['{}.{}.guards'.format(__name__, clazzname.lower())]
+    modulekey = '{}.{}.guards'.format(__name__, clazzname.lower())
+    wfmodule = sys.modules[modulekey]
     if not wfmodule:
+        logger.warning("No module found: {1}".format(modulekey))
         return True
 
     # Inspect if guard_<transition_id> function exists in the above module
     key = 'guard_{0}'.format(transition_id)
     guard = getattr(wfmodule, key, False)
     if not guard:
+        logger.warning("No guard found: {0}.{1}".format(modulekey, key))
         return True
 
     return guard(instance)
