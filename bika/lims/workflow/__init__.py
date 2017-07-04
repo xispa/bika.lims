@@ -662,9 +662,14 @@ def SamplePrepWorkflowChain(ob, wftool):
     This is only done if the object is in 'sample_prep' state in the
     primary workflow (review_state).
     """
+    chain = list(ToolWorkflowChain(ob, wftool))
+    sampleprep_workflow = ob.getPreparationWorkflow()
+    if not sampleprep_workflow:
+        return chain
+
     logger.info("SamplePrepWorkflowChain {0}".format(ob))
     # use catalog to retrieve review_state: getInfoFor causes recursion loop
-    chain = list(ToolWorkflowChain(ob, wftool))
+    # TODO Workflow + Performance - Sample Preparation. Revisit this!
     try:
         bc = getToolByName(ob, 'bika_catalog')
     except AttributeError:
@@ -676,7 +681,7 @@ def SamplePrepWorkflowChain(ob, wftool):
     proxies = bc(UID=ob.UID())
     if not proxies or proxies[0].review_state != 'sample_prep':
         return chain
-    sampleprep_workflow = ob.getPreparationWorkflow()
+
     if sampleprep_workflow:
         chain.append(sampleprep_workflow)
     return tuple(chain)
@@ -692,9 +697,11 @@ def SamplePrepTransitionEventHandler(instance, event):
     If the final state's ID is not found in the AR workflow, the AR will be
     transitioned to 'sample_received'.
     """
+    # TODO Workflow - Sample Preparation. Seems this function doesn't fires
     if not event.transition:
         # creation doesn't have a 'transition'
         return
+
     logger.info("SamplePrepTransitionEventHandler {0}: {1}".format(instance.getId(), event.transition.id))
 
     if not event.new_state.getTransitions():
