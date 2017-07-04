@@ -155,7 +155,13 @@ def setup_catalogs(
                 progress = 0
                 total = len(brains_to_uncat)
                 for brain in brains_to_uncat:
-                    catalog_old.uncatalog_object(brain.getPath())
+                    try:
+                        catalog_old.uncatalog_object(brain.getPath())
+                    except:
+                        logger.warn(
+                            'Brain {} could not be uncataloged due '
+                            'to: \n {}'.format(
+                                brain, traceback.format_exc()))
                     progress += 1
                     if progress % 100 == 0:
                         logger.info(
