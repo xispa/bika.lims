@@ -109,7 +109,7 @@ BIKA: Schedule Sampling,N,N,N,N,N,N,N,N,N,N,N,N,N
 Id:,sample_due,,,,,,,,,,,,
 Title:,Sample Due,,,,,,,,,,,,
 Description:,,,,,,,,,,,,,
-Transitions,"preserve, receive, reject",,,,,,,,,,,,
+Transitions,"receive, reject",,,,,,,,,,,,
 Permissions,Acquire,Anonymous,Manager,Owner,Reader,Editor,Contributor,Analyst,LabClerk,LabManager,Preserver,Sampler,SamplingCoordinator
 BIKA: Cancel and reinstate,N,N,Y,Y,N,N,N,N,Y,Y,N,N,N
 BIKA: Edit Field Results,N,N,Y,N,N,N,N,Y,Y,Y,N,Y,Y

@@ -15,6 +15,22 @@ from Products.CMFCore.Expression import Expression
 product = 'bika.lims'
 version = '3.2.0.1707'
 
+bika_workflows = ['bika_analysis_workflow',
+                  'bika_ar_workflow',
+                  'bika_arimport_workflow',
+                  'bika_batch_workflow',
+                  'bika_cancellation_workflow',
+                  'bika_duplicateanalysis_workflow',
+                  'bika_inactive_workflow',
+                  'bika_order_workflow',
+                  'bika_publication_workflow',
+                  'bika_referenceanalysis_workflow',
+                  'bika_referencesample_workflow',
+                  'bika_sample_workflow',
+                  'bika_samplinground_workflow',
+                  'bika_worksheet_workflow',
+                  'sampleprep_simple']
+
 
 @upgradestep(product, version)
 def upgrade(tool):
@@ -30,11 +46,19 @@ def upgrade(tool):
 
     logger.info("Upgrading {0}: {1} -> {2}".format(product, ufrom, version))
 
-    # Rename all guard expressions to python:here.guard_handler('<action_id>')
-    set_guard_expressions(portal)
+    # Fix workflows stuff
+    fix_workflows(portal)
 
     logger.info("{0} upgraded to version {1}".format(product, version))
     return True
+
+
+def fix_workflows(portal):
+    # Rename all guard expressions to python:here.guard_handler('<action_id>')
+    set_guard_expressions(portal)
+
+    # Fix workflow transitions
+    fix_workflow_transitions(portal)
 
 
 def set_guard_expressions(portal):
@@ -42,22 +66,7 @@ def set_guard_expressions(portal):
     """
     logger.info('Renaming guard expressions...')
     wtool = get_tool('portal_workflow')
-    targetwfids = ['bika_analysis_workflow',
-                   'bika_ar_workflow',
-                   'bika_arimport_workflow',
-                   'bika_batch_workflow',
-                   'bika_cancellation_workflow',
-                   'bika_duplicateanalysis_workflow',
-                   'bika_inactive_workflow',
-                   'bika_order_workflow',
-                   'bika_publication_workflow',
-                   'bika_referenceanalysis_workflow',
-                   'bika_referencesample_workflow',
-                   'bika_sample_workflow',
-                   'bika_samplinground_workflow',
-                   'bika_worksheet_workflow',
-                   'sampleprep_simple']
-    for wfid in targetwfids:
+    for wfid in bika_workflows:
         workflow = wtool.getWorkflowById(wfid)
         transitions = workflow.transitions
         for transid in transitions.objectIds():
@@ -74,3 +83,19 @@ def set_guard_expressions(portal):
             msg = "Guard expression for '{0}.{1}' changed: {2} -> {3}".format(
                     wfid, transid, oldexpr, newguard)
             logger.info(msg)
+
+
+def fix_workflow_transitions(portal):
+    logger.info('Fix workflow transitions...')
+    inconsistences = {
+        'bika_sample_workflow': {
+            'sample_due': ['receive', 'reject']
+        }
+    }
+    wtool = get_tool('portal_workflow')
+    for wfid, wfdef in inconsistences.items():
+        workflow = wtool.getWorkflowById(wfid)
+        for wfstatid, transitions in wfdef.items():
+            msg = "Transitions for {0}.{1} set to: {2}"
+            workflow.states[wfstatid].transitions = transitions
+            logger.info(msg.format(wfid, wfstatid, ','.join(transitions)))
