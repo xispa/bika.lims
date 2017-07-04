@@ -2826,7 +2826,15 @@ class AnalysisRequest(BaseFolder):
         from this Analysis Request
         """
         bsc = getToolByName(self, 'bika_setup_catalog')
-        dept_uids = [b.getDepartmentUID for b in self.getAnalyses()]
+        dept_uids = []
+        for an in self.getAnalyses():
+            deptuid = None
+            if hasattr(an, 'getDepartmentUID'):
+                deptuid = an.getDepartmentUID
+            if not deptuid and hasattr(an, 'getObject'):
+                deptuid = an.getObject().getDepartmentUID()
+            if deptuid:
+                dept_uids.append(deptuid)
         brains = bsc(portal_type='Department', UID=dept_uids)
         depts = [b.getObject() for b in brains]
         return list(set(depts))

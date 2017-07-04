@@ -321,6 +321,7 @@ def AfterTransitionEventHandler(instance, event):
     logger.info(msg.format(clazzname, instance.getId(), 'finished', fullname))
 
 
+
 def get_workflow_actions(obj):
     """ Compile a list of possible workflow transitions for this object
     """
@@ -328,11 +329,8 @@ def get_workflow_actions(obj):
     def translate(id):
         return t(PMF(id + "_transition_title"))
 
-    workflow = getToolByName(obj, 'portal_workflow')
-    actions = [{"id": it["id"],
-                "title": translate(it["id"])}
-               for it in workflow.getTransitionsFor(obj)]
-
+    transids = getAllowedTransitions(obj)
+    actions = [{'id': it, 'title': translate(it)} for it in transids]
     return actions
 
 
@@ -373,6 +371,19 @@ def isTransitionAllowed(instance, transition_id, active_only=True):
             return True
 
     return False
+
+
+def getAllowedTransitions(instance):
+    """Returns a list with the transition ids that can be performed against
+    the instance passed in.
+    :param instance: A content object
+    :type instance: ATContentType
+    :returns: A list of transition/action ids
+    :rtype: list
+    """
+    wftool = getToolByName(instance, "portal_workflow")
+    transitions = wftool.getTransitionsFor(instance)
+    return [trans['id'] for trans in transitions]
 
 
 def wasTransitionPerformed(instance, transition_id):
