@@ -141,6 +141,9 @@ def setup_catalogs(
             for prev_cat in prev_catalogs_list:
                 if prev_cat == 'uid_catalog':
                     continue
+                if prev_cat == cat_id:
+                    archetype_tool.setCatalogsByType(type_id, [cat_id])
+                    continue
                 catalog_old = getToolByName(portal, prev_cat, None)
                 if catalog_old is None:
                     logger.warning(
