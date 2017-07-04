@@ -10,6 +10,7 @@ from bika.lims.interfaces import IJSONReadExtender
 from bika.lims.jsonapi import get_include_fields
 from bika.lims.utils import t
 from bika.lims import logger
+from DateTime import DateTime
 from Products.CMFCore.interfaces import IContentish
 from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.CMFCore.utils import getToolByName
@@ -288,10 +289,6 @@ def AfterTransitionEventHandler(instance, event):
     if not event.transition:
         return
 
-    # Set the request variable preventing cascade's from re-transitioning.
-    if skip(instance, event.transition.id):
-        return
-
     clazzname = instance.portal_type
     currstate = getCurrentState(instance)
     msg = "Transition '{0}' finished: '{1}' '{2}' ({3})".format(
@@ -321,6 +318,8 @@ def AfterTransitionEventHandler(instance, event):
     after_event(instance)
     logger.info(msg.format(clazzname, instance.getId(), 'finished', fullname))
 
+    # Set the request variable preventing cascade's from re-transitioning.
+    skip(instance, event.transition.id)
 
 
 def get_workflow_actions(obj):
@@ -663,6 +662,7 @@ def SamplePrepWorkflowChain(ob, wftool):
     This is only done if the object is in 'sample_prep' state in the
     primary workflow (review_state).
     """
+    logger.info("SamplePrepWorkflowChain {0}".format(ob))
     # use catalog to retrieve review_state: getInfoFor causes recursion loop
     chain = list(ToolWorkflowChain(ob, wftool))
     try:
@@ -695,6 +695,7 @@ def SamplePrepTransitionEventHandler(instance, event):
     if not event.transition:
         # creation doesn't have a 'transition'
         return
+    logger.info("SamplePrepTransitionEventHandler {0}: {1}".format(instance.getId(), event.transition.id))
 
     if not event.new_state.getTransitions():
         # Is this the final (No exit transitions) state?
