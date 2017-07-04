@@ -76,7 +76,7 @@ def after_submit(obj):
     # is no need to check here if all analyses within the AR have been
     # transitioned already.
     ar = obj.getRequest()
-    doActionFor(ar, 'verify')
+    doActionFor(ar, 'submit')
 
     # Ecalate to Worksheet. Note that the guard for submit transition from
     # Worksheet will check if the Worksheet can be transitioned, so there is no
