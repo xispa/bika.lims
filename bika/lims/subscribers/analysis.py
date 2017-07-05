@@ -9,6 +9,7 @@ from bika.lims import logger
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import changeWorkflowState
+from bika.lims.workflow import wasTransitionPerformed
 
 from DateTime import DateTime
 from Products.Archetypes.config import REFERENCE_CATALOG
