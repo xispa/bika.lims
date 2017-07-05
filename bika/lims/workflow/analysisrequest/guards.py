@@ -6,13 +6,29 @@ from bika.lims.workflow import wasTransitionPerformed
 
 
 def guard_to_be_preserved(obj):
-    """ Returns True if the Sample from this AR needs to be preserved
-    Returns false if the Analysis Request has no Sample assigned yet or
-    does not need to be preserved
-    Delegates to Sample's guard_to_be_preserved
+    """Returns true if the 'to_be_preserved' transition can be performed to the
+    obj (Analysis Request) passed in.
+
+    Returns True if the following conditions are met:
+    - The Analysis Request is active (neither inactive nor cancelled state)
+    - The Analysis Request has a Sample assigned
+    - The 'to_be_preserved' transition can be performed to the Sample assigned
+      to the Analysis Request.
+
+    :param obj: the Analysis Request the to_be_preserved transition is
+                evaluated against.
+    :type obj: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
     """
+    if not isBasicTransitionAllowed(obj):
+        return False
+
     sample = obj.getSample()
-    return sample and sample.guard_to_be_preserved()
+    if sample:
+        return isTransitionAllowed(sample, 'to_be_preserved')
+
+    return False
 
 
 def guard_schedule_sampling(obj):
