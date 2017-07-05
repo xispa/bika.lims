@@ -21,6 +21,7 @@ from zope.component import adapts
 from zope.interface import implementer
 from zope.interface import implements
 from zope.interface import Interface
+import os
 import sys
 import traceback
 
@@ -145,13 +146,13 @@ def _logTransitionFailure(obj, transition_id):
                     if not tdef:
                         continue
                     if tdef.trigger_type != TRIGGER_USER_ACTION:
-                        logger.warning("  Trigger type is not manual")
+                        logger.warning("Trigger type is not manual")
                     if not tdef.actbox_name:
-                        logger.warning("  No actbox_name set")
+                        logger.warning("No actbox_name set")
                     if not wf._checkTransitionGuard(tdef, obj):
                         guard = tdef.guard
                         expr = guard.getExprText()
-                        logger.warning("  Guard failed: {0}".format(expr))
+                        logger.warning("Guard failed: {0}".format(expr))
                     return
     logger.warning("Transition not found. Check the workflow definition!")
 
@@ -208,8 +209,7 @@ def GuardHandler(instance, transition_id):
     clazzname = instance.portal_type
 
     # Inspect if bika.lims.workflow.<clazzname>.<guards> module exists
-    modulekey = '{}.{}.guards'.format(__name__, clazzname.lower())
-    wfmodule = sys.modules.get(modulekey, None)
+    wfmodule = _load_wf_module('{0}.guards'.format(clazzname.lower()))
     if not wfmodule:
         return True
 
@@ -248,8 +248,7 @@ def BeforeTransitionEventHandler(instance, event):
     logger.info(msg)
 
     # Inspect if bika.lims.workflow.<clazzname>.<events> module exists
-    modulekey = '{}.{}.events'.format(__name__, clazzname.lower())
-    wfmodule = sys.modules.get(modulekey, None)
+    wfmodule = _load_wf_module('{0}.events'.format(clazzname.lower()))
     if not wfmodule:
         return
 
@@ -300,8 +299,7 @@ def AfterTransitionEventHandler(instance, event):
     instance.reindexObject()
 
     # Inspect if bika.lims.workflow.<clazzname>.<events> module exists
-    modulekey = '{}.{}.events'.format(__name__, clazzname.lower())
-    wfmodule = sys.modules.get(modulekey, None)
+    wfmodule = _load_wf_module('{0}.events'.format(clazzname.lower()))
     if not wfmodule:
         return
 
@@ -717,3 +715,44 @@ def SamplePrepTransitionEventHandler(instance, event):
             # fallback state:
             dst_state = 'sample_received'
         changeWorkflowState(instance, primary_wf_name, dst_state)
+
+
+def _load_wf_module(modrelname):
+    """Loads a python module based on the module relative name passed in.
+
+    At first, tries to get the module from sys.modules. If not found there, the
+    function tries to load it by using importlib. Returns None if no module
+    found or importlib is unable to load it because of errors.
+    Ex:
+        _load_wf_module('sample.events')
+
+    will try to load the module 'bika.lims.workflow.sample.events'
+
+    :param modrelname: relative name of the module to be loaded
+    :type modrelname: string
+    :return: the module
+    :rtype: module
+    """
+    rootmodname = __name__
+    modulekey = '{0}.{1}'.format(rootmodname, modrelname)
+    if modulekey in sys.modules:
+        return sys.modules.get(modulekey, None)
+
+    # Try to load the module recursively
+    modname = None
+    tokens = modrelname.split('.')
+    for part in tokens:
+        modname = '.'.join([modname, part]) if modname else part
+        modulepath = '{0}.{1}'.format(rootmodname, modname)
+        import importlib
+        try:
+            logger.info("Importing {0}".format(modulepath))
+            module = importlib.import_module('.'+modname, package=rootmodname)
+            if not module:
+                logger.warn("Cannot import {0}".format(modulepath))
+                return None
+        except Exception as e:
+            logger.warn("Cannot import {0}".format(modulepath))
+            logger.error(e, exc_info=True)
+            return None
+    return sys.modules.get(modulekey, None)
