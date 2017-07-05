@@ -17,7 +17,12 @@ def _cascade_promote_transition(obj, transition_id, targetstate):
     the transition to its parent Sample
     """
     # Transition our analyses
-    for analysis in obj.getAnalyses():
+    analyses = obj.getAnalyses()
+    if not analyses or len(analyses) == 0:
+        msg = "Sample Partition {0} has no analyses assigned"
+        logger.warning(msg.format(obj.getId()))
+
+    for analysis in analyses:
         doActionFor(analysis, transition_id)
 
     # If all sibling partitions are received, promote Sample. Sample
