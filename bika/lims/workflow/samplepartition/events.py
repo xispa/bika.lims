@@ -6,7 +6,7 @@ from bika.lims.workflow import skip
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import isBasicTransitionAllowed
-from bila.lims.workflow import wasTransitionPerformed
+from bika.lims.workflow import wasTransitionPerformed
 
 # TODO Workflow - SamplePartition. Review all
 
@@ -21,7 +21,7 @@ def _cascade_promote_transition(obj, transition_id, targetstate):
         doActionFor(analysis, transition_id)
 
     # If all sibling partitions are received, promote Sample. Sample
-    # transition will, in turn, transition the Analysis Requests
+    # transition will, in turn, transition the Analysis Requests.
     sample = obj.aq_parent
     parts = sample.objectValues("SamplePartition")
     recep = [sp for sp in parts if wasTransitionPerformed(sp, targetstate)]
