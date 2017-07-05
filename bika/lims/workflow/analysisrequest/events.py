@@ -2,7 +2,6 @@ from Products.CMFCore.utils import getToolByName
 from DateTime import DateTime
 
 from bika.lims import logger
-from bika.lims.utils.analysisrequest import notify_rejection
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import isBasicTransitionAllowed
@@ -132,6 +131,7 @@ def after_reject(obj):
 
     if obj.bika_setup.getNotifyOnRejection():
         # Notify the Client about the Rejection.
+        from bika.lims.utils.analysisrequest import notify_rejection
         notify_rejection(obj)
 
 
