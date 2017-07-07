@@ -29,7 +29,7 @@ def upgrade(tool):
             product, ufrom, version))
         # The currently installed version is more recent than the target
         # version of this upgradestep
-        return True
+        # return True
 
     logger.info("Upgrading {0}: {1} -> {2}".format(product, ufrom, version))
 
@@ -59,6 +59,10 @@ def fix_ar_analyses_statuses_inconsistences(portal):
     rolemappings_needed = False
     target_state = 'sample_received'
     catalog = get_tool(CATALOG_ANALYSIS_REQUEST_LISTING)
+    # This function catalogs and reindexes the objects quering the objects
+    # over uid_catalog
+    catalog.softClearFindAndRebuild()
+
     brains = catalog(portal_type='AnalysisRequest', review_state=target_state)
     for brain in brains:
         analysisrequest = brain.getObject()
