@@ -221,22 +221,6 @@ def after_dispose(sample):
         doActionFor(partition, 'dispose')
 
 
-def after_reinstate(sample):
-    """Method triggered after a 'reinstate' transition for the Sample passed in
-    is performed.
-
-    Tries to perform the same transition to Sample Partitions and Analysis
-    Requests associated to the sample passed in.
-
-    This function is called automatically by
-    bika.lims.workflow.AfterTransitionEventHandler
-
-    :param sample: Sample affected by the transition
-    :type sample: Sample
-    """
-    _cascade_transition(sample, 'reinstate')
-
-
 def after_expire(sample):
     """Method triggered after a 'expire' transition for the Sample passed in
     is performed.
@@ -257,23 +241,6 @@ def after_expire(sample):
 
     for partition in sample.getSamplePartitions():
         doActionFor(partition, 'expire')
-
-
-def after_cancel(sample):
-    """Method triggered after a 'cancel' transition for the Sample passed in
-    is performed.
-
-    Tries to perform the same transition to the Sample Partitions and Analysis
-    Requests associated to the sample passed in. If a Sample is cancelled, then
-    all the Sample Partitions must be cancelled too.
-
-    This function is called automatically by
-    bika.lims.workflow.AfterTransitionEventHandler
-
-    :param sample: Sample affected by the transition
-    :type sample: Sample
-    """
-    _cascade_transition(sample, 'cancel')
 
 
 def after_sample_prep(sample):
@@ -302,3 +269,36 @@ def after_sample_prep_complete(sample):
     """
     # TODO Workflow - Sample after_sample_prep_complete
     pass
+
+
+def after_cancel(sample):
+    """Method triggered after a 'cancel' transition for the Sample passed in
+    is performed. Transition from bika_cancellation_workflow
+
+    Tries to perform the same transition to the Sample Partitions and Analysis
+    Requests associated to the sample passed in. If a Sample is cancelled, then
+    all the Sample Partitions must be cancelled too.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param sample: Sample affected by the transition
+    :type sample: Sample
+    """
+    _cascade_transition(sample, 'cancel')
+
+
+def after_reinstate(sample):
+    """Method triggered after a 'reinstate' transition for the Sample passed in
+    is performed. Transition from bika_cancellation_workflow
+
+    Tries to perform the same transition to Sample Partitions and Analysis
+    Requests associated to the sample passed in.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param sample: Sample affected by the transition
+    :type sample: Sample
+    """
+    _cascade_transition(sample, 'reinstate')
