@@ -132,10 +132,10 @@ class Sticker(BrowserView):
         if portal_type == 'AnalysisRequest':
             ar = item
             sample = item.getSample()
-            parts = sample.objectValues('SamplePartition')
+            parts = sample.getSamplePartitions()
         elif portal_type == 'Sample':
             sample = item
-            parts = sample.objectValues('SamplePartition')
+            parts = sample.getSamplePartitions()
         elif portal_type == 'SamplePartition':
             sample = item.aq_parent
             parts = [item, ]

@@ -72,7 +72,7 @@ class TestShowPartitions(BikaSimpleTestCase):
             ar.REQUEST['items'] = ar.UID()
             ar.REQUEST['template'] = stemp.get('id')
             sticker = Sticker(ar, ar.REQUEST)()
-            pid = ar.getSample().objectValues("SamplePartition")[0].getId()
+            pid = ar.getSample().getSamplePartitions()[0].getId()
             self.assertNotIn(pid, sticker, "Sticker must not contain partition ID %s"%pid)
 
             # create and receive AR
@@ -84,7 +84,7 @@ class TestShowPartitions(BikaSimpleTestCase):
             ar.REQUEST['items'] = ar.UID()
             ar.REQUEST['template'] = stemp.get('id')
             sticker = Sticker(ar, ar.REQUEST)()
-            pid = ar.getSample().objectValues("SamplePartition")[0].getId()
+            pid = ar.getSample().getSamplePartitions()[0].getId()
             self.assertIn(pid, sticker, "Sticker must contain partition ID %s"%pid)
 
 def test_suite():

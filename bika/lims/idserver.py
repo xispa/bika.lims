@@ -98,7 +98,7 @@ def generateUniqueId(context):
         # padding = int(matches and matches[0]['padding'] or '0')
 
         # at this time the part exists, so +1 would be 1 too many
-        partnr = str(len(context.aq_parent.objectValues('SamplePartition')))
+        partnr = str(len(context.aq_parent.getSamplePartitions()))
         # parent id is normalized already
         return ("%s" + separator + "P%s") % (context.aq_parent.id, partnr)
 

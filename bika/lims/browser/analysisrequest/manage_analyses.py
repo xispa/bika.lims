@@ -179,7 +179,7 @@ class AnalysisRequestAnalysesView(BikaListingView):
         items = BikaListingView.folderitems(self)
         analyses = self.context.getAnalyses(full_objects=True)
 
-        parts = self.context.getSample().objectValues('SamplePartition')
+        parts = self.context.getSample().getSamplePartitions()
         partitions = [{'ResultValue': o.Title(),
                        'ResultText': o.getId()}
                       for o in parts

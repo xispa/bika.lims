@@ -160,11 +160,11 @@ class ClientWorkflowAction(AnalysisRequestWorkflowAction):
                 else:
                     continue
 
-                for sp in sample.objectValues("SamplePartition"):
+                for sp in sample.getSamplePartitions():
                     if workflow.getInfoFor(sp, 'review_state') == 'to_be_preserved':
                         sp.setDatePreserved(DatePreserved)
                         sp.setPreserver(Preserver)
-                for sp in sample.objectValues("SamplePartition"):
+                for sp in sample.getSamplePartitions():
                     if workflow.getInfoFor(sp, 'review_state') == 'to_be_preserved':
                         if Preserver and DatePreserved:
                             doActionFor(sp, action)

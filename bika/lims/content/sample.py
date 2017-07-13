@@ -812,7 +812,7 @@ class Sample(BaseFolder, HistoryAwareMixin):
         """ Calculate the disposal date by returning the latest
             disposal date in this sample's partitions """
 
-        parts = self.objectValues("SamplePartition")
+        parts = self.getSamplePartitions()
         dates = []
         for part in parts:
             date = part.getDisposalDate()
@@ -853,5 +853,9 @@ class Sample(BaseFolder, HistoryAwareMixin):
             prep_workflows.append([workflow_id, workflow.title])
         return DisplayList(prep_workflows)
 
+    def getSamplePartitions(self):
+        """Returns the Sample Partitions associated to this Sample
+        """
+        return self.getSamplePartitions()
 
 atapi.registerType(Sample, PROJECTNAME)

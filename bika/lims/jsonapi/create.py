@@ -435,7 +435,7 @@ class Create(object):
                 to_be_preserved = []
                 sample_due = []
                 lowest_state = 'sample_due'
-                for p in sample.objectValues('SamplePartition'):
+                for p in sample.getSamplePartitions():
                     if p.getPreservation():
                         lowest_state = 'to_be_preserved'
                         to_be_preserved.append(p)

@@ -1,179 +1,315 @@
-from Products.CMFCore.utils import getToolByName
+# coding=utf-8
 from DateTime import DateTime
-
-from bika.lims import logger
-from bika.lims.workflow import skip
 from bika.lims.workflow import doActionFor
-from bika.lims.workflow import getCurrentState
-from bika.lims.workflow import isBasicTransitionAllowed
-from bika.lims.workflow import wasTransitionPerformed
-
-# TODO Workflow - SamplePartition. Review all
 
 
-def _cascade_promote_transition(obj, transition_id, targetstate):
-    """ Performs the transition for the actionid passed in to its children
-    (Analyses). If all sibling partitions are in the targe state, promotes
-    the transition to its parent Sample
+def _cascade_promote_transition(partition, transition_id):
+    """ Performs the transition for the transition_id passed in to the
+    children, parent and siblings of the partition passed in.
+
+    Tries to fire the transition_id passed in for all the analyses associated
+    to the partition. The function tries to fire the same transition to the
+    parent Sample.
+
+    Note the function tries to perform the transitions to children and parent,
+    but those transitions will only take place if the corresponding guards and
+    loops.
+    permissions allow to do it. This mechanism prevents infinite recursive
+
+    :param partition: Sample Partition for which the transition has to be
+                      cascaded or promoted.
+    :param transition_id: Unique id of the transition
+    :type partition: SamplePartition
+    :type transition_id: str
     """
-    # Transition our analyses
-    analyses = obj.getAnalyses()
-    if not analyses or len(analyses) == 0:
-        msg = "Sample Partition {0} has no analyses assigned"
-        logger.warning(msg.format(obj.getId()))
-
-    for analysis in analyses:
+    for analysis in partition.getAnalyses():
         doActionFor(analysis, transition_id)
 
-    # If all sibling partitions are received, promote Sample. Sample
-    # transition will, in turn, transition the Analysis Requests.
-    sample = obj.aq_parent
-    parts = sample.objectValues("SamplePartition")
-    recep = [sp for sp in parts if wasTransitionPerformed(sp, targetstate)]
-    if len(parts) == len(recep):
-        doActionFor(sample, transition_id)
+    # Promote Sample. Sample transition will, in turn, transition the Analysis
+    # Requests.
+    sample = partition.getSample()
+    doActionFor(sample, transition_id)
 
 
-def after_no_sampling_workflow(obj):
+def after_no_sampling_workflow(partition):
     """Method triggered after a 'no_sampling_workflow' transition for the
-    current Sample is performed. Triggers the 'no_sampling_workflow'
-    transition for depedendent objects, such as Sample Partitions and
-    Analysis Requests.
+    Sample Partition passed in is performed.
+
+    Tries to perform the same transition to all the analyses and parent sample
+    associated to the partition passed in.
+
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
     """
-    _cascade_promote_transition(obj, 'no_sampling_workflow', 'sampled')
+    _cascade_promote_transition(partition, 'no_sampling_workflow')
 
 
-def after_sampling_workflow(self):
+def after_sampling_workflow(partition):
     """Method triggered after a 'sampling_workflow' transition for the
-    current Sample is performed. Triggers the 'sampling_workflow'
-    transition for depedendent objects, such as Sample Partitions and
-    Analysis Requests.
+    Sample Partition passed in is performed.
+
+    Tries to perform the same transition to all the analyses and parent sample
+    associated to the partition passed in.
+
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
     """
-    _cascade_promote_transition(obj, 'sampling_workflow', 'to_be_sampled')
+    _cascade_promote_transition(partition, 'sampling_workflow')
 
 
-def after_sample(self):
-    """Method triggered after a 'sample' transition for the current
-    SamplePartition is performed. Triggers the 'sample' transition for
-    depedendent objects, such as Analyses
+def after_to_be_preserved(partition):
+    """Method triggered after a 'to_be_preserved' transition for the
+    Sample Partition passed in is performed.
+
+    Tries to perform the same transition to all the analyses and parent sample
+    associated to the partition passed in.
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
+    """
+    _cascade_promote_transition(partition, 'to_be_preserved')
+
+
+def after_preserve(partition):
+    """Method triggered after a 'preserve' transition for the Sample Partition
+    passed in is performed.
+
+    Tries to perform the same transition to all the analyses and parent sample
+    associated to the partition passed in.
+
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
     """
-    _cascade_promote_transition(obj, 'sample', 'sampled')
+    _cascade_promote_transition(partition, 'preserve')
 
 
-def after_sample_due(obj):
-    """Method triggered after a 'sample_due' transition for the current
-    SamplePartition is performed. Triggers the 'sample_due' transition for
-    depedendent objects, such as Analyses
+def after_schedule_sampling(partition):
+    """Method triggered after a 'schedule_sampling' transition for the Sample
+    Partition passed in is performed.
+
+    Tries to perform the same transition to all the analyses and parent sample
+    associated to the partition passed in.
+
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
     """
-    _cascade_promote_transition(obj, 'sample_due', 'sample_due')
+    _cascade_promote_transition(partition, 'schedule_sampling')
 
 
-def after_receive(obj):
-    """Method triggered after a 'receive' transition for the current Sample
-    Partition is performed. Stores value for "Date Received" field and also
-    triggers the 'receive' transition for depedendent objects, such as
-    Analyses associated to this Sample Partition. If all Sample Partitions
-    that belongs to the same sample as the current Sample Partition have
-    been transitioned to the "received" state, promotes to Sample
+def after_sample(partition):
+    """Method triggered after a 'sample' transition for the Sample Partition
+    passed in is performed.
+
+    Tries to perform 'sample' transition to all Analyses associated to the
+    Sample Partition and the parent Sample as well. The assumption is that if
+    all Sample Partitions of a Sample have been sampled, the Sample must be
+    sampled too.
+
+    Once done, does the following:
+
+    a) If parent Sample has the sampling workflow enabled and the partition has
+       a preservation set:
+       The function tries to perform the "to_be_preserved" transition to the
+       Sample Partition itself.
+
+    b) If parent Sample has the sampling workflow disabled
+       The function tries to perform the "sample_due" transition to the Sample
+       Partition itself.
+
+    Note that in both cases (a or b), the transition ultimately performed to
+    the Sample Partition will be triggered to children (analyses) and escalated
+    to parents (Sample and Analysis Requests).
+
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample Partition affected by the 'sample' transition
+    :type partition: SamplePartition
     """
-    obj.setDateReceived(DateTime())
-    obj.reindexObject(idxs=["getDateReceived", ])
-    _cascade_promote_transition(obj, 'receive', 'sample_received')
+    _cascade_promote_transition(partition, 'sample')
 
-
-def after_to_be_preserved(obj):
-    sample = obj.aq_parent
-    workflow = getToolByName(obj, 'portal_workflow')
-    # Transition our analyses
-    analyses = obj.getAnalyses()
-    for analysis in analyses:
-        doActionFor(analysis, "to_be_preserved")
-    # if all our siblings are now up to date, promote sample and ARs.
-    parts = sample.objectValues("SamplePartition")
-    if parts:
-        lower_states = ['to_be_sampled', 'to_be_preserved', ]
-        escalate = True
-        for part in parts:
-            if workflow.getInfoFor(part, 'review_state') in lower_states:
-                escalate = False
-        if escalate:
-            doActionFor(sample, "to_be_preserved")
-            for ar in sample.getAnalysisRequests():
-                doActionFor(ar, "to_be_preserved")
-
-
-def after_preserve(obj):
-    workflow = getToolByName(obj, 'portal_workflow')
-    sample = obj.aq_parent
-    # Transition our analyses
-    analyses = obj.getAnalyses()
-    if analyses:
-        for analysis in analyses:
-            doActionFor(analysis, "preserve")
-    # if all our siblings are now up to date, promote sample and ARs.
-    parts = sample.objectValues("SamplePartition")
-    if parts:
-        lower_states = ['to_be_sampled', 'to_be_preserved', ]
-        escalate = True
-        for part in parts:
-            if workflow.getInfoFor(part, 'review_state') in lower_states:
-                escalate = False
-        if escalate:
-            doActionFor(sample, "preserve")
-            for ar in sample.getAnalysisRequests():
-                doActionFor(ar, "preserve")
-
-
-def after_reinstate(obj):
-    sample = obj.aq_parent
-    workflow = getToolByName(obj, 'portal_workflow')
-    obj.reindexObject(idxs=["cancellation_state", ])
-    sample_c_state = workflow.getInfoFor(sample, 'cancellation_state')
-    # if all sibling partitions are active, activate sample
-    if not skip(sample, "reinstate", peek=True):
-        cancelled = [sp for sp in sample.objectValues("SamplePartition")
-                     if workflow.getInfoFor(sp, 'cancellation_state') == 'cancelled']
-        if sample_c_state == 'cancelled' and not cancelled:
-            workflow.doActionFor(sample, 'reinstate')
-
-
-def after_cancel(obj):
-    if skip(obj, "cancel"):
+    sample = partition.getSample()
+    if sample.getSamplingWorkflowEnabled() and partition.getPreservation():
+        # The partition requires to be preserved, automatic transition to
+        # to_be_preserved
+        doActionFor(partition, 'to_be_preserved')
         return
-    sample = obj.aq_parent
-    workflow = getToolByName(obj, 'portal_workflow')
-    obj.reindexObject(idxs=["cancellation_state", ])
-    sample_c_state = workflow.getInfoFor(sample, 'cancellation_state')
-    # if all sibling partitions are cancelled, cancel sample
-    if not skip(sample, "cancel", peek=True):
-        active = [sp for sp in sample.objectValues("SamplePartition")
-                  if workflow.getInfoFor(sp, 'cancellation_state') == 'active']
-        if sample_c_state == 'active' and not active:
-            workflow.doActionFor(sample, 'cancel')
+
+    # Automatic transition to sample due
+    doActionFor(partition, 'sample_due')
 
 
-def after_reject(obj):
-    workflow = getToolByName(obj, 'portal_workflow')
-    sample = obj.aq_parent
-    obj.reindexObject(idxs=["review_state", ])
-    sample_r_state = workflow.getInfoFor(sample, 'review_state')
-    # if all sibling partitions are cancelled, cancel sample
-    not_rejected = [sp for sp in sample.objectValues("SamplePartition")
-              if workflow.getInfoFor(sp, 'review_state') != 'rejected']
-    if sample_r_state != 'rejected':
-        workflow.doActionFor(sample, 'reject')
+def after_sample_due(partition):
+    """Method triggered after a 'sample_due' transition for the Sample
+    Partition passed in is performed.
+
+    Tries to perform the same transition to all the analyses and parent sample
+    associated to the partition passed in. The assumption is that if all
+    Sample Partitions of a Sample are pending of reception, the Sample must be
+    in a pending state too.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
+    """
+    _cascade_promote_transition(partition, 'sample_due')
 
 
-def after_expire(obj):
-    obj.setDateExpired(DateTime())
-    obj.reindexObject(idxs=["review_state", "getDateExpired", ])
+def after_receive(partition):
+    """Method triggered after a 'receive' transition for the Sample Partition
+    passed in is performed.
+
+    Tries to perform the same transition to all the analyses and parent sample
+    associated to the partition passed in. It also stores the value for the
+    "Date Received" field of the partition. The assumption is that if all
+    Sample Partitions of a Sample have been received, the Sample must be
+    received too.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
+    """
+    partition.setDateReceived(DateTime())
+    partition.reindexObject(idxs=["getDateReceived", ])
+    _cascade_promote_transition(partition, 'receive')
+
+
+def after_reject(partition):
+    """Method triggered after a 'reject' transition for the Sample Partition
+    passed in is performed.
+
+    Tries to perform the same transition to the parent sample the partition
+    passed in belongs to. Note that in this case, analyses are not affected by
+    this transition. The assumption is that if all Sample Partitions of a
+    Sample have been rejected, the Sample must be rejected too.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
+    """
+
+    # Promote Sample. Sample transition will, in turn, transition the Analysis
+    # Requests.
+    sample = partition.getSample()
+    doActionFor(sample, 'reject')
+
+
+def after_dispose(partition):
+    """Method triggered after a 'dispose' transition for the Sample Partition
+    passed in is performed.
+
+    Tries to perform the same transition to the parent sample the partition
+    passed in belongs to. The assumption is that if all Sample Partitions of a
+    Sample have been disposed, the Sample must be rejected too.
+    Note that in this case, analyses are not affected by this transition.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
+    """
+
+    # Promote Sample. Sample transition will, in turn, transition the Analysis
+    # Requests.
+    sample = partition.getSample()
+    doActionFor(sample, 'dispose')
+
+
+def after_reinstate(partition):
+    """Method triggered after a 'reinstate' transition for the Sample Partition
+    passed in is performed.
+
+    Tries to perform the same transition to all the analyses and parent sample
+    associated to the partition passed in. The assumption is that if all
+    Sample Partitions of a Sample are reinstated, the Sample must be reinstated
+    too, as well as all the analyses assigned to this partition.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
+    """
+    _cascade_promote_transition(partition, 'reinstate')
+
+
+def after_expire(partition):
+    """Method triggered after a 'expire' transition for the Sample Partition
+    passed in is performed.
+
+    Tries to perform the same transition to the parent Sample. The assumption
+    is that if all Sample Partitions of a Sample are expired, the Sample must
+    be expired too. Note analyses are not affected by this transition.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
+    """
+    sample = partition.getSample()
+    doActionFor(sample, 'expire')
+
+
+def after_cancel(partition):
+    """Method triggered after a 'cancel' transition for the Sample Partition
+    passed in is performed.
+
+    Tries to perform the same transition to the parent Sample. The assumption
+    is that if all Sample Partitions of a Sample are cancelled, the Sample must
+    be cancelled too, as well as the analyses assigned to this partition.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param partition: Sample partition affected by the transition
+    :type partition: SamplePartition
+    """
+    _cascade_promote_transition(partition, 'cancel')
+
+
+def after_sample_prep(sample):
+    """Method triggered after a 'sample_prep' transition for the Sample
+    Partition passed in is performed.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param sample: Sample partition affected by the transition
+    :type sample: SamplePartition
+    """
+    # TODO Workflow - SamplePartition after_sample_prep
+    pass
+
+
+def after_sample_prep_complete(sample):
+    """Method triggered after a 'sample_prep_complete' transition for the
+    Sample Partition passed in is performed.
+
+    This function is called automatically by
+    bika.lims.workflow.AfterTransitionEventHandler
+
+    :param sample: Sample partition affected by the transition
+    :type sample: SamplePartition
+    """
+    # TODO Workflow - SamplePartition after_sample_prep_complete
+    pass

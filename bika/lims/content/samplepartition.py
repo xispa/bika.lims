@@ -3,24 +3,20 @@
 # Copyright 2011-2016 by it's authors.
 # Some rights reserved. See LICENSE.txt, AUTHORS.txt.
 
+from datetime import timedelta
 from AccessControl import ClassSecurityInfo
-from bika.lims import deprecated
-from bika.lims.browser.fields import UIDReferenceField
+from Products.ATContentTypes.lib.historyaware import HistoryAwareMixin
+from Products.ATContentTypes.utils import DT2dt, dt2DT
+from Products.Archetypes.public import *
+from Products.CMFPlone.utils import safe_unicode
+from zope.interface import implements
 from bika.lims.browser.fields import DurationField
+from bika.lims.browser.fields import UIDReferenceField
 from bika.lims.config import PROJECTNAME
 from bika.lims.content.bikaschema import BikaSchema
 from bika.lims.interfaces import ISamplePartition, ISamplePrepWorkflow
-from bika.lims.workflow import doActionFor
-from bika.lims.workflow import wasTransitionPerformed
-from bika.lims.workflow import skip
+from bika.lims.workflow import getTransitionDate
 from DateTime import DateTime
-from datetime import timedelta
-from Products.Archetypes.public import *
-from Products.ATContentTypes.lib.historyaware import HistoryAwareMixin
-from Products.ATContentTypes.utils import DT2dt, dt2DT
-from Products.CMFCore.utils import getToolByName
-from Products.CMFPlone.utils import safe_unicode
-from zope.interface import implements
 
 schema = BikaSchema.copy() + Schema((
     ReferenceField('Container',
@@ -82,6 +78,25 @@ class SamplePartition(BaseContent, HistoryAwareMixin):
         """ Return the Sample ID as title """
         return safe_unicode(self.getId()).encode('utf-8')
 
+    def getSample(self):
+        """Returns the Sample the current Sample Partition belongs to
+        """
+        return self.aq_parent
+
+    def getSiblings(self):
+        """Returns the siblings of this Sample Partition. This is the Sample
+        Partitions that belongs to the same Sample as this one.
+        If no siblings found, returns None
+
+        :returns: a list of SamplePartitions associated to the same Sample
+        :rtype: list
+        """
+        sample = self.getSample()
+        if sample:
+            partitions = sample.getSamplePartitions()
+            siblings = [sp for sp in partitions if sp.UID() != sp.UID()]
+            return siblings
+
     @security.public
     def current_date(self):
         """ return current date """
@@ -110,6 +125,26 @@ class SamplePartition(BaseContent, HistoryAwareMixin):
 
         dis_date = DateSampled and dt2DT(DT2dt(DateSampled) + td) or None
         return dis_date
+
+    @security.public
+    def getDateDisposed(self):
+        """Returns the date when this Sample Partition was disposed. If the
+        Sample Partition hasn't been disposed, returns None
+
+        :returns: Date when this Sample Partition was disposed
+        :rtype: DateTime
+        """
+        return getTransitionDate(self, 'dispose', return_as_datetime=True)
+
+    @security.public
+    def getDateExpired(self):
+        """Returns the date when this Sample Partition expired. If the Sample
+        Partition didn't expire, returns None
+
+        :returns: Date when this Sample Partition expired
+        :rtype: DateTime
+        """
+        return getTransitionDate(self, 'expire', return_as_datetime=True)
 
 
 registerType(SamplePartition, PROJECTNAME)
