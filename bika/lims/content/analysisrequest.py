@@ -1339,11 +1339,12 @@ schema = BikaSchema.copy() + Schema((
             },
         ),
     ),
-    DateTimeField(
-        'DatePublished',
+    ComputedField(
+        'DatePublishedViewer',
         mode="r",
         read_permission=permissions.View,
-        widget=DateTimeWidget(
+        expression="here.getDatePublished().strftime('%Y-%m-%d %H:%M %p') if here.getDatePublished() else ''",
+        widget=StringWidget(
             label=_("Date Published"),
             visible={
                 'edit': 'visible',
