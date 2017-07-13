@@ -5,38 +5,11 @@
 
      var that = this;
      that.load = function() {
-         // I don't know why samples don't have the reject state button, so I'll
-         // have to insert a handmade one.
-         if ($('body').hasClass('portaltype-sample') &&
-            $('#plone-contentmenu-workflow .state-reject').length < 1) {
-                var url = window.location.href.replace('/base_view','');
-                var autentification = $('input[name="_authenticator"]').val();
-                // we have to insert the state button
-                var dom_e = '<li><a id="workflow-transition-reject" class="" title="" href="' + url + '/doActionForSample?workflow_action=reject&_authenticator=' + autentification + '">Reject</li>"';
-                $(dom_e).prependTo($('#plone-contentmenu-workflow dd.actionMenuContent ul')[0]);
-         }
-        // If rejection workflow is disabled, hide the state link
-        var request_data = {
-            catalog_name: "portal_catalog",
-            portal_type: "BikaSetup",
-            include_fields: [
-                "RejectionReasons"]
-        };
-        window.bika.lims.jsonapi_read(request_data, function (data) {
-            if (data.success &&
-                data.total_objects > 0) {
-                var rejection_reasons = data.objects[0].RejectionReasons;
-                var reasons_state;
-                if(rejection_reasons.length > 0) {
-                    reasons_state = rejection_reasons[0].checkbox;
-                }
-                if (reasons_state === undefined || reasons_state != 'on'){
-                    $('a#workflow-transition-reject').closest('li').hide();
-                }
-            }
-        });
-        reject_widget_semioverlay_setup();
-    };
+     var action_button = $('a#workflow-transition-reject');
+        if ($(action_button).length > 0) {
+            reject_widget_semioverlay_setup();
+        }
+     };
 
      function reject_widget_semioverlay_setup() {
          "use strict";
@@ -154,24 +127,29 @@
                 bika.lims.SiteView.notificationPanel('Rejecting', "succeed");
                 // the behaviour for samples is different
                 if($('body').hasClass('portaltype-sample')) {
-                    // We need to get the authenticator
-                    var autentification = $('input[name="_authenticator"]').val();
-                    $.ajax({
-                        url: window.location.href + '/doActionForSample?workflow_action=reject&_authenticator=' + autentification,
-                        type: 'POST',
-                        dataType: "json",
-                    })
-                    .done(function(data2) {
-                        if (data2 !== null && data2.success == "true") {
-                            window.location.href = window.location.href;
-                        } else {
-                            bika.lims.SiteView.notificationPanel('Error while updating object state', "error");
-                            var msg = '[bika.lims.analysisrequest.js] Error while updating object state';
-                            console.warn(msg);
-                            window.bika.lims.error(msg);
-                            $('#semioverlay input[name="semioverlay.cancel"]').click();
-                        }
-                    });
+                    var request_data = {
+                        catalog_name: 'bika_catalog',
+                        content_type: 'Sample',
+                        id: $('span[id="breadcrumbs-current"]').val()
+                    };
+        			window.jsonapi_cache = window.jsonapi_cache || {};
+        			$.ajax({
+        				type: "POST",
+        				dataType: "json",
+        				url: window.portal_url + "/@@API/doActionFor",
+        				data: request_data,
+        				success: function(data2) {
+                            if (data2 !== null && data2.success == "true") {
+                                window.location.href = window.location.href;
+                            } else {
+                                bika.lims.SiteView.notificationPanel('Error while updating object state', "error");
+                                var msg = '[bika.lims.analysisrequest.js] Error while updating object state';
+                                console.warn(msg);
+                                window.bika.lims.error(msg);
+                                $('#semioverlay input[name="semioverlay.cancel"]').click();
+                            }
+        				}
+        			});
                 } else {
                     // Redirecting to the same page using the rejection's url
                     bika.lims.SiteView.notificationPanel('Rejecting', "succeed");

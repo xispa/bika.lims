@@ -4,6 +4,7 @@
 # Some rights reserved. See LICENSE.txt, AUTHORS.txt.
 
 from bika.lims.jsonapi.read import read
+from bika.lims.workflow import doActionFor
 from plone.jsonapi.core import router
 from plone.jsonapi.core.interfaces import IRouteProvider
 from Products.CMFCore.utils import getToolByName
@@ -40,7 +41,6 @@ class doActionFor(object):
 
         """
         savepoint = transaction.savepoint()
-        workflow = getToolByName(context, 'portal_workflow')
         uc = getToolByName(context, 'uid_catalog')
 
         action = request.get('action', '')
@@ -60,8 +60,7 @@ class doActionFor(object):
         for obj_dict in objects:
             try:
                 obj = uc(UID=obj_dict['UID'])[0].getObject()
-                workflow.doActionFor(obj, action)
-                obj.reindexObject()
+                doActionFor(obj, action)
             except Exception as e:
                 savepoint.rollback()
                 msg = "Cannot execute '{0}' on {1} ({2})".format(
@@ -81,7 +80,6 @@ class doActionFor(object):
 
         """
         savepoint = transaction.savepoint()
-        workflow = getToolByName(context, 'portal_workflow')
         site_path = request['PATH_INFO'].replace("/@@API/doActionFor_many", "")
 
         obj_paths = json.loads(request.get('f', '[]'))
@@ -102,8 +100,7 @@ class doActionFor(object):
             if obj_path.startswith(site_path):
                 obj_path = obj_path[len(site_path):]
             try:
-                workflow.doActionFor(obj, action)
-                obj.reindexObject()
+                doActionFor(obj, action)
             except Exception as e:
                 savepoint.rollback()
                 msg = "Cannot execute '{0}' on {1} ({2})".format(

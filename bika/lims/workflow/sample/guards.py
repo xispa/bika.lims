@@ -73,6 +73,18 @@ def guard_sample_prep_complete(obj):
 
 
 def guard_reject(obj):
+    """Returns true if the 'reject' transition can be performed to the obj
+    (Sample) passed in.
+
+    Returns True if the following conditions are met:
+    - The Sample is active (neither inactive nor cancelled state)
+    - Rejection Workflow is enabled in bika_setup
+
+    :param obj: the Sample the 'reject' transition has to be evaluated against.
+    :type obj: Sample
+    :returns: True or False
+    :rtype: bool
+    """
     if not isBasicTransitionAllowed(obj):
         return False
     return obj.bika_setup.isRejectionWorkflowEnabled()
