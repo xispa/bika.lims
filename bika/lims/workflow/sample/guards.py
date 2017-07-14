@@ -1,4 +1,5 @@
 from Products.CMFCore.utils import getToolByName
+from Products.CMFCore.WorkflowCore import WorkflowException
 from bika.lims import logger
 from bika.lims.workflow import isBasicTransitionAllowed
 
@@ -202,6 +203,7 @@ def guard_sample_prep_complete(obj):
     """
     # TODO Workflow - Sample.guard_sample_prep_complete
     wftool = getToolByName(obj, 'portal_workflow')
+    sp_wf_name = ''
     try:
         # get sampleprep workflow object.
         sp_wf_name = obj.getPreparationWorkflow()
@@ -215,7 +217,7 @@ def guard_sample_prep_complete(obj):
         return False
     except AssertionError:
         logger.warn("'%s': cannot get 'sampleprep_review_state'" %
-                    sampleprep_wf_name)
+                    sp_wf_name)
         return False
 
     # get state from workflow - error = allow transition
