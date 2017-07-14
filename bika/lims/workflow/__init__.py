@@ -340,12 +340,11 @@ def isBasicTransitionAllowed(context, permission=None):
     normally be set in the guard_permission in workflow definition.
 
     """
-    workflow = getToolByName(context, "portal_workflow")
-    mtool = getToolByName(context, "portal_membership")
     if not isActive(context):
         return False
     if permission:
-        return mtool.checkPermission(permission, context)
+        tool = getToolByName(context, "portal_membership")
+        return tool.checkPermission(permission, context)
     return True
 
 
