@@ -5,43 +5,34 @@
 
 """Sample represents a physical sample submitted for testing
 """
+import sys
+
 from AccessControl import ClassSecurityInfo
-from Products.CMFCore.WorkflowCore import WorkflowException
-from bika.lims import bikaMessageFactory as _, logger
-from bika.lims.utils import t, getUsers
+from Products.ATContentTypes.lib.historyaware import HistoryAwareMixin
+from Products.ATContentTypes.utils import DT2dt, dt2DT
 from Products.ATExtensions.field import RecordsField
-from bika.lims import deprecated
-from bika.lims.browser.widgets.datetimewidget import DateTimeWidget
-from bika.lims.browser.widgets import RejectionWidget
-from bika.lims.config import PROJECTNAME
-from bika.lims.content.bikaschema import BikaSchema
-from bika.lims.interfaces import ISample, ISamplePrepWorkflow
-from bika.lims.permissions import SampleSample
-from bika.lims.permissions import ScheduleSampling
-from bika.lims.workflow import doActionFor
-from bika.lims.workflow import isBasicTransitionAllowed
-from bika.lims.workflow import isTransitionAllowed
-from bika.lims.workflow import skip
-from bika.lims.workflow.sample import guards
-from bika.lims.workflow.sample import events
-from DateTime import DateTime
 from Products.Archetypes import atapi
 from Products.Archetypes.config import REFERENCE_CATALOG
 from Products.Archetypes.public import *
 from Products.Archetypes.public import DisplayList
 from Products.Archetypes.references import HoldingReference
-from Products.ATContentTypes.lib.historyaware import HistoryAwareMixin
-from Products.ATContentTypes.utils import DT2dt, dt2DT
 from Products.CMFCore import permissions
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.utils import safe_unicode
 from zope.interface import implements
 
+from bika.lims import bikaMessageFactory as _
 from bika.lims.browser.fields import DateTimeField
 from bika.lims.browser.widgets import ReferenceWidget
+from bika.lims.browser.widgets import RejectionWidget
 from bika.lims.browser.widgets import SelectionWidget as BikaSelectionWidget
-
-import sys
+from bika.lims.browser.widgets.datetimewidget import DateTimeWidget
+from bika.lims.config import PROJECTNAME
+from bika.lims.content.bikaschema import BikaSchema
+from bika.lims.interfaces import ISample, ISamplePrepWorkflow
+from bika.lims.permissions import SampleSample
+from bika.lims.permissions import ScheduleSampling
+from bika.lims.utils import getUsers
 from bika.lims.utils import to_unicode
 
 schema = BikaSchema.copy() + Schema((
