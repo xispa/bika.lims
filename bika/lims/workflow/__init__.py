@@ -1,29 +1,23 @@
-# This file is part of Bika LIMS
-#
-# Copyright 2011-2016 by it's authors.
-# Some rights reserved. See LICENSE.txt, AUTHORS.txt.
+# coding=utf-8
+import sys
+import traceback
 
-from bika.lims import enum
-from bika.lims import PMF
-from bika.lims.browser import ulocalized_time
-from bika.lims.interfaces import IJSONReadExtender
-from bika.lims.jsonapi import get_include_fields
-from bika.lims.utils import t
-from bika.lims import logger
-from DateTime import DateTime
-from Products.CMFCore.interfaces import IContentish
 from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.interfaces import IWorkflowChain
 from Products.CMFPlone.workflow import ToolWorkflowChain
 from Products.DCWorkflow.Transitions import TRIGGER_USER_ACTION
-from zope.component import adapts
 from zope.interface import implementer
 from zope.interface import implements
-from zope.interface import Interface
-import os
-import sys
-import traceback
+
+from DateTime import DateTime
+from bika.lims import PMF
+from bika.lims import enum
+from bika.lims import logger
+from bika.lims.browser import ulocalized_time
+from bika.lims.interfaces import IJSONReadExtender
+from bika.lims.jsonapi import get_include_fields
+from bika.lims.utils import t
 
 # This is required to authorize AccessControl.ZopeGuards to access to this
 # module (bika.lims.workflow) and function/s via skin's python scripts.
@@ -121,7 +115,7 @@ def doActionFor(instance, action_id, active_only=True, allowed_transition=True):
     else:
         logger.warning(
             "doActionFor should never (ever) be called with allowed_transition"
-            "set to True as it avoids permission checks.")
+            "set to False as it avoids permission checks.")
     try:
         workflow.doActionFor(instance, action_id)
         actionperformed = True
@@ -324,8 +318,8 @@ def get_workflow_actions(obj):
     """ Compile a list of possible workflow transitions for this object
     """
 
-    def translate(id):
-        return t(PMF(id + "_transition_title"))
+    def translate(transition_id):
+        return t(PMF(transition_id + "_transition_title"))
 
     transids = getAllowedTransitions(obj)
     actions = [{'id': it, 'title': translate(it)} for it in transids]
@@ -348,26 +342,129 @@ def isBasicTransitionAllowed(context, permission=None):
     return True
 
 
-def isTransitionAllowed(instance, transition_id, active_only=True):
-    """Checks if the object can perform the transition passed in.
-    If active_only is set to true, the function will always return false if the
-    object's current state is inactive or cancelled.
-    Apart from the current state, it also checks if the guards meet the
-    conditions (as per workflowtool.getTransitionsFor)
-    :returns: True if transition can be performed
+def isActionSupported(instance, transition_id):
+    """Returns true if the transition id passed in is supported for at least
+    one of the workflows associated to the instance passed in based on its
+    current state.
+    :param instance: object to be used for the evaluation
+    :param transition_id: the transition id or action id to look for
+    :type instance: ATContentType
+    :type transition_id: str
     :rtype: bool
     """
-    if active_only and not isBasicTransitionAllowed(instance):
-        return False
-
-    wftool = getToolByName(instance, "portal_workflow")
-    chain = wftool.getChainFor(instance)
+    tool = getToolByName(instance, 'portal_workflow')
+    chain = tool.getChainFor(instance)
     for wf_id in chain:
-        wf = wftool.getWorkflowById(wf_id)
-        if wf and wf.isActionSupported(instance, transition_id):
+        workflow = tool.getWorkflowById(wf_id)
+        if workflow and workflow.isActionSupported(instance, transition_id):
             return True
 
     return False
+
+
+def isTransitionAllowed(instance, transition_id, active_only=True,
+                        dependencies=None, target_statuses=None,
+                        check_all=False, active_dependencies_only=True,
+                        check_history=False, check_action=True):
+    """Returns true or false if the transition passed in can be performed to
+    the instance passed in.
+
+    By default, if only instance and transition_id params are used, the
+    function will return True only if the instance is not inactive (states
+    cancelled or inactivated) and if there is a workflow that supports this
+    transition/action for the current state of the instance.
+
+    If dependencies parameter (with or without any of the parameters
+    target_statuses, check_all or check_history) is set, the dependencies
+    passed in will also be evaluated to decide if the instance passed in can
+    be transitioned or not. For example, an Analysis Request can only be
+    transitioned to 'verified' state if all the analyses that contain are in
+    'verified' state already (or have been transitioned to that state
+    previously). In this particular example, the function call could be like:
+
+        isTransitionAllowed(ar, 'verify', dependencies=ar.getAnalyses(),
+                            check_history=True)
+
+    IMPORTANT: If this function is called from within a guard context, the
+        param check_action should be set to False to prevent recursive looping.
+
+    :param instance: the instance the transition has to be evaluated against
+    :param transition_id: unique id of the transition to be evaluated
+    :param active_only: True to dismiss objects that are inactive
+    :param dependencies: list of objects to be additionally evaluated
+    :param target_statuses: list of statuses to check dependencies for
+    :param check_all: if false, the function will return true if the transition
+        can at least take place for one of the dependencies. If is set to True,
+        the function will only return True if the transition can be performed
+        for all dependencies.
+    :param active_dependencies_only: True if only active dependencies must be
+        considered for evaluation.
+    :param check_history: True to evaluate if the transition was performed for
+        each dependency in the past (calls to wasTransitionPerformed()
+    :param check_action: isActionSupported will not be used to check if the
+        transition is supported by DCWorkflow.
+    :type instance: ATContentType
+    :type transition_id: str
+    :type active_only: bool
+    :type dependencies: [ATContentType,]
+    :type target_statuses: [str,]
+    :type check_all: bool
+    :type active_dependencies_only: bool
+    :type check_history: bool
+    :type check_action: bool
+    :returns: true if the transition can be performed to the instance
+    :rtype: bool
+    """
+    if active_only and not isActive(instance):
+        # The instance is not active (its state is cancelled or inactive, so
+        # there is no need of further steps
+        return False
+
+    if check_action and not isActionSupported(instance, transition_id):
+        # From the current state of the instance, the transition cannot be
+        # performed.
+        return False
+
+    if not dependencies:
+        # If no dependencies specified, assume there is nothing more to check,
+        # so the transition can be performed.
+        return True
+
+    # If dependencies has been set, try to see if the transition can be
+    # performed to the instance passed in based on the state of other objects
+    # (dependencies).
+    allowed = False
+    for dependency in dependencies:
+        if active_dependencies_only and not isActive(dependency):
+            # This dependency is not in an active state, so dismiss it.
+            continue
+
+        if target_statuses:
+            # If the current status of the dependency is the same as the target
+            # status the object will reach after the transition, assume the
+            # transition can be performed for the instance (maybe the
+            # transition was performed directly to the dependency and the
+            # instance must be transitioned accordingly)
+            allowed = getCurrentState(dependency) in target_statuses
+            if allowed and not check_all:
+                break
+
+        if not allowed and check_history:
+            # Check if the transition for the current dependency take place
+            # in the past already
+            allowed = wasTransitionPerformed(dependency, transition_id)
+            if allowed and not check_all:
+                break
+
+        if not allowed:
+            # Check if the transition can be performed to the dependency
+            allowed = isTransitionAllowed(dependency, transition_id)
+            if allowed and not check_all:
+                break
+            elif not allowed and check_all:
+                break
+
+    return allowed
 
 
 def getAllowedTransitions(instance):
@@ -414,6 +511,23 @@ def isActive(instance):
     return True
 
 
+def isEndState(instance, workflow_id):
+    """Returns true if the current state of the instance passed in is an end
+    state, from which no other transitions are possible.
+
+    :param instance: the instance the current state must be evaluated
+    :param workflow_id: the id of the workflow associated to instance
+    :returns: True if the state for the instance passed in is an end state
+    :type instance: ATContentType
+    :type workflow_id: str
+    :rtype: bool
+    """
+    tool = getToolByName(instance, 'portal_workflow')
+    workflow = tool.getWorkflowById(workflow_id)
+    transitions = workflow.getTransitionsFor(instance)
+    return len(transitions) == 0
+
+
 def getReviewHistoryActionsList(instance):
     """Returns a list with the actions performed for the instance, from oldest
     to newest. If there is no review history for the instance passed in or the
@@ -423,7 +537,7 @@ def getReviewHistoryActionsList(instance):
     :returns: the list of action/transition ids, sorted from oldest to newest
     :rtype: list
     """
-    review_history = getReviewHistory()
+    review_history = getReviewHistory(instance)
     review_history.reverse()
     actions = [event['action'] for event in review_history]
     return actions
@@ -518,10 +632,10 @@ def getTransitionMember(obj, action_id):
     :returns: the member that performed the transition passed-in
     :rtype: IMember
     """
-    actor = getTransitionActor(action_id)
+    actor = getTransitionActor(obj, action_id)
     if not actor:
         return None
-    mtool = getToolByName(self, 'portal_membership')
+    mtool = getToolByName(obj, 'portal_membership')
     member = mtool.getMemberById(actor)
     return member
 
@@ -565,7 +679,7 @@ def changeWorkflowState(content, wf_id, state_id, acquire_permissions=False,
     @param kw: change the values of same name of the state mapping
     @return: None
     """
-
+    # TODO Workflow - changeWorkflowState. Is this still required?
     if portal_workflow is None:
         portal_workflow = getToolByName(content, 'portal_workflow')
 
@@ -659,6 +773,7 @@ def SamplePrepWorkflowChain(ob, wftool):
     This is only done if the object is in 'sample_prep' state in the
     primary workflow (review_state).
     """
+    # TODO Workflow - SamplePrepWorkflowChain - Apply only to Samples/Partitions
     chain = list(ToolWorkflowChain(ob, wftool))
     sampleprep_workflow = ob.getPreparationWorkflow()
     if not sampleprep_workflow:
@@ -746,8 +861,8 @@ def _load_wf_module(modrelname):
         import importlib
         try:
             logger.info("Importing {0}".format(modulepath))
-            module = importlib.import_module('.'+modname, package=rootmodname)
-            if not module:
+            _module = importlib.import_module('.'+modname, package=rootmodname)
+            if not _module:
                 logger.warn("Cannot import {0}".format(modulepath))
                 return None
         except Exception as e:
