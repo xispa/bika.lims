@@ -149,6 +149,11 @@ def guard_reject(partition):
     """Returns true if the 'reject' transition can be performed to the
     sample partition passed in.
 
+    Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
+    - The Sample partition is active (neither inactive nor cancelled state)
+    - Rejection workflow is enabled in bika_setup
+
     Returns True if the user has enough privileges to fire the transition and
     the Sample Partition is active (neither inactive nor cancelled state).
 
@@ -157,6 +162,9 @@ def guard_reject(partition):
     :returns: True or False
     :rtype: bool
     """
+    if not partition.bika_setup.getRejectionWorkflowEnabled():
+        return False
+
     return isBasicTransitionAllowed(partition)
 
 
