@@ -1,7 +1,8 @@
-from Products.CMFCore.utils import getToolByName
-from Products.CMFCore.WorkflowCore import WorkflowException
+# coding=utf-8
 from bika.lims import logger
-from bika.lims.workflow import isBasicTransitionAllowed
+from bika.lims.workflow import getCurrentState
+from bika.lims.workflow import isEndState
+from bika.lims.workflow import isTransitionAllowed
 
 
 def guard_sampling_workflow(sample):
@@ -11,17 +12,23 @@ def guard_sampling_workflow(sample):
     Returns True if the following conditions are met:
     - The user has enough privileges to fire the transition
     - The Sample is active (neither inactive nor cancelled state)
-    - Sampling Workflow is enabled in bika_setup
+    - The transition can be performed to at least one of the partitions from
+      the sample passed in or at least one of the partitions' state is the
+      'to_be_sampled' state already.
+
+    Note this function does not check if the Sampling workflow has been enabled
+    in Bika Setup. This check is delegated to partitions corresponding guards
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    if not sample.bika_setup.getSamplingWorkflowEnabled():
-        return False
-
-    return isBasicTransitionAllowed(sample)
+    return isTransitionAllowed(instance=sample,
+                               transition_id='sampling_workflow',
+                               dependencies=sample.getSamplePartitions(),
+                               target_statuses=['to_be_sampled'],
+                               check_action=False)
 
 
 def guard_to_be_preserved(sample):
@@ -31,107 +38,147 @@ def guard_to_be_preserved(sample):
     Returns True if the following conditions are met:
     - The user has enough privileges to fire the transition
     - The Sample is active (neither inactive nor cancelled state)
-    - Sampling Workflow is enabled in bika_setup
-    - At least there is one Sample Partition that needs to be preserved
+    - At least there is one Sample Partition that needs to be preserved or has
+      already be transitioned to a to_be_preserved state
+
+    Note this function does not check if the Sampling Workflow has been enabled
+    in Bika Setup on purpose, cause may happen the Sample was created when the
+    workflow was enabled and now is not. So, in fact, a Sample can only be
+    transitioned to to_be_preserved state only if has at least one Partition
+    that requires to be preserved. The guard for this transition in Sample
+    Partition will deal with either the Sampling Workflow is enabled or not.
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    if not sample.bika_setup.getSamplingWorkflowEnabled():
-        return False
-
-    if not isBasicTransitionAllowed(sample):
-        return False
-
-    for partition in sample.getSamplePartitions():
-        if partition.getPreservation():
-            return True
-
-    return False
+    return isTransitionAllowed(instance=sample,
+                               transition_id='to_be_preserved',
+                               dependencies=sample.getSamplePartitions(),
+                               target_statuses=['to_be_preserved'],
+                               check_action=False)
 
 
 def guard_preserve(sample):
-    """Returns true if the 'preserver' transition can be performed to the
-    sample passed in.
+    """Returns true if the 'preserve' transition can be performed to the sample
+    passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample is active (neither inactive nor cancelled state)
+    Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
+    - The Sample is active (neither inactive nor cancelled state)
+    - The transition can be performed to at least one of the partitions from
+      the sample passed in or at least one of the partitions' state is the
+      'sample_due' state already.
 
-    :param sample: the Sample the transition has to be valuated against.
+    Note this function does not check if the Sampling workflow has been enabled
+    in Bika Setup. This check is delegated to partitions corresponding guards
+
+    :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    return isBasicTransitionAllowed(sample)
+    return isTransitionAllowed(instance=sample,
+                               transition_id='preserve',
+                               dependencies=sample.getSamplePartitions(),
+                               target_statuses=['sample_due'],
+                               check_action=False)
 
 
 def guard_schedule_sampling(sample):
     """Returns true if the 'schedule_sampling' transition can be performed to
     the sample passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample is active (neither inactive nor cancelled state).
+    Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
+    - The Sample is active (neither inactive nor cancelled state)
+    - The transition can be performed to at least one of the partitions from
+      the sample passed in or at least one of the partitions' state is the
+      'scheduled_sampling' state already.
 
-    Note that if the sample reached a state from which this transition can be
-    performed, there is no need to check if sampling workflow is enabled, cause
-    may happen the sampling workflow was enabled before the Sample creation
-    (and the sample was transitioned accordingly), but disabled afterwards. If
-    we force the sampling workflow to be enabled here, in that case we'd end up
-    with a stale sample, with no transition allowed other than cancel.
+    Note this function does not check if the Sampling workflow has been enabled
+    in Bika Setup. This check is delegated to partitions corresponding guards
 
-    :param sample: the Sample the transition has to be valuated against.
+    :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    return isBasicTransitionAllowed(sample)
+    return isTransitionAllowed(instance=sample,
+                               transition_id='schedule_sampling',
+                               dependencies=sample.getSamplePartitions(),
+                               target_statuses=['scheduled_sampling'],
+                               check_action=False)
 
 
 def guard_sample(sample):
     """Returns true if the 'sample' transition can be performed to the sample
     passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample is active (neither inactive nor cancelled state)
+    Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
+    - The Sample is active (neither inactive nor cancelled state)
+    - The transition can be performed to at least one of the partitions from
+      the sample passed in or the transition was performed at least for one of
+      the partitions.
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    return isBasicTransitionAllowed(sample)
+    return isTransitionAllowed(instance=sample,
+                               transition_id='sample',
+                               dependencies=sample.getSamplePartitions(),
+                               check_history=True,
+                               check_action=False)
 
 
 def guard_sample_due(sample):
     """Returns true if the 'sample_due' transition can be performed to the
     sample passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample is active (neither inactive nor cancelled state)
+    Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
+    - The Sample is active (neither inactive nor cancelled state)
+    - The transition can be performed to all active partitions associated to
+      the sample passed in or the transition has been performed already.
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    return isBasicTransitionAllowed(sample)
+    return isTransitionAllowed(instance=sample,
+                               transition_id='sample_due',
+                               dependencies=sample.getSamplePartitions(),
+                               check_all=True,
+                               check_history=True,
+                               check_action=False)
 
 
 def guard_receive(sample):
     """Returns true if the 'receive' transition can be performed to the sample
     passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample is active (neither inactive nor cancelled state)
+    Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
+    - The Sample is active (neither inactive nor cancelled state)
+    - The transition can be performed to all active partitions associated to
+      the sample passed in or the transition has been performed already.
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    return isBasicTransitionAllowed(sample)
+    return isTransitionAllowed(instance=sample,
+                               transition_id='receive',
+                               dependencies=sample.getSamplePartitions(),
+                               check_all=True,
+                               check_history=True,
+                               check_action=False)
 
 
 def guard_reject(sample):
@@ -139,33 +186,48 @@ def guard_reject(sample):
     passed in.
 
     Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
     - The Sample is active (neither inactive nor cancelled state)
-    - Rejection Workflow is enabled in bika_setup
+    - The transition can be performed to all partitions from the sample passed
+      in or their state is already 'rejected'
+
+    Note this function does not check if the Rejection workflow is enabled in
+    Bika Setup. This check is delegated to guard from partitions.
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    if not sample.bika_setup.getRejectionWorkflowEnabled():
-        return False
-
-    return isBasicTransitionAllowed(sample)
+    return isTransitionAllowed(instance=sample,
+                               transition_id='reject',
+                               dependencies=sample.getSamplePartitions(),
+                               target_statuses=['rejected'],
+                               check_all=True,
+                               check_action=False)
 
 
 def guard_dispose(sample):
     """Returns true if the 'dispose' transition can be performed to the sample
     passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample is active (neither inactive nor cancelled state)
+    Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
+    - The Sample is active (neither inactive nor cancelled state)
+    - The transition can be performed to all active partitions from the sample
+      passed in or their state is already 'disposed'
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    return isBasicTransitionAllowed(sample)
+    return isTransitionAllowed(instance=sample,
+                               transition_id='dispose',
+                               dependencies=sample.getSamplePartitions(),
+                               target_statuses=['disposed'],
+                               check_all=True,
+                               check_action=False)
 
 
 def guard_sample_prep(sample):
@@ -173,56 +235,61 @@ def guard_sample_prep(sample):
     sample passed in.
 
     Returns True if the following conditions are met:
+    - The user has enough privileges to fire the transition
     - The Sample is active (neither inactive nor cancelled state)
-    - Rejection Workflow is enabled in bika_setup
-    - A Preparation Workflow is set for the sample passed in
+    - The transition can be performed to all active partitions from the
+      sample passed in or their state is already 'rejected'
+
+    Note this function does not check if the sample has a preparation workflow
+    set. This check is delegated to guard from partitions.
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    if not sample.getPreparationWorkflow():
-        return False
+    return isTransitionAllowed(instance=sample,
+                               transition_id='sample_prep',
+                               dependencies=sample.getSamplePartitions(),
+                               target_statuses=['sample_prep'],
+                               check_all=True,
+                               check_action=False)
 
-    return isBasicTransitionAllowed(sample)
 
+def guard_sample_prep_complete(sample):
+    """Returns true if the 'sample_prep_complete' transition can be performed
+    to the sample passed in. This relies on user created workflow.
 
-def guard_sample_prep_complete(obj):
-    """ This relies on user created workflow.  This function must
-    defend against user errors.
+    Returns True if the following conditions are met:
+    - The Sample is active (neither inactive nor cancelled state)
+    - The Sample doesn't have a PreparationWorkflow assigned or if does, the
+      Sample does not have state associated or is a dead-end state.
 
-    AR and Analysis guards refer to this one.
-
-    - If error is encountered, do not permit object to proceed.  Break
-      this rule carelessly and you may see recursive automatic workflows.
-
-    - If sampleprep workflow is badly configured, primary review_state
-      can get stuck in "sample_prep" forever.
-
+    :param sample: the Sample the transition has to be evaluated against.
+    :type sample: Sample
+    :returns: True or False
+    :rtype: bool
     """
-    # TODO Workflow - Sample.guard_sample_prep_complete
-    wftool = getToolByName(obj, 'portal_workflow')
-    sp_wf_name = ''
-    try:
-        # get sampleprep workflow object.
-        sp_wf_name = obj.getPreparationWorkflow()
-        sp_wf = wftool.getWorkflowById(sp_wf_name)
-        # get sampleprep_review state.
-        sp_review_state = wftool.getInfoFor(obj, 'sampleprep_review_state')
-        assert sp_review_state
-    except WorkflowException as e:
-        logger.warn("guard_sample_prep_complete_transition: "
-                    "WorkflowException %s" % e)
-        return False
-    except AssertionError:
-        logger.warn("'%s': cannot get 'sampleprep_review_state'" %
-                    sp_wf_name)
-        return False
+    state_var = 'sampleprep_review_state'
+    prep_workflow_id = sample.getPreparationWorkflow(sample)
+    if not prep_workflow_id:
+        # This should never happen, but return True to prevent a stale status
+        msg = "No preparation workflow set for sample {0}, although its " + \
+              "current state is {1}: Allowing sample_prep_complete transition"
+        state = getCurrentState(sample)
+        logger.warning(msg.format(sample.getId(), state))
+        return True
 
-    # get state from workflow - error = allow transition
-    # get possible exit transitions for state: error = allow transition
-    transitions = sp_wf
-    if len(transitions) > 0:
-        return False
-    return True
+    state = getCurrentState(sample, state_var)
+    if not state:
+        # This should never happen, but return True to prevent a stale status
+        msg = "No {0} value found for sample {1}, although its current " + \
+              "is {1}: Allowing sample_prep_complete transition"
+        state = getCurrentState(sample)
+        logger.warning(msg.format(state_var, sample.getId(), state))
+        return True
+
+    # If the current state for sampleprep_review_state is the last possible
+    # from the preparation workflow, return True. Otherwise, assume the
+    # preparation workflow has not finished yet and return False
+    return isEndState(sample, prep_workflow_id)
