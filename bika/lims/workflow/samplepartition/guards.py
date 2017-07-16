@@ -2,12 +2,26 @@
 from bika.lims.workflow import isBasicTransitionAllowed
 
 
+def guard_no_sampling_workflow(partition):
+    """Returns true if the 'no_sampling_workflow' transition can be performed
+    to the sample partition passed in.
+
+    Returns True if the Sample partition is active (its state is neither
+    inactive nor cancelled)
+
+    :param partition: Partition the transition has to be evaluated against.
+    :type partition: SamplePartition
+    :returns: True or False
+    :rtype: bool
+    """
+    return isBasicTransitionAllowed(partition)
+
+
 def guard_sampling_workflow(partition):
     """Returns true if the 'sampling_workflow' transition can be performed to
     the sample partition passed in.
 
     Returns True if the following conditions are met:
-    - The user has enough privileges to fire the transition
     - The Sample Partition is active (neither inactive nor cancelled state)
     - Sampling Workflow is enabled in bika_setup
 
@@ -27,7 +41,6 @@ def guard_to_be_preserved(partition):
     sample partition passed in.
 
     Returns True if the following conditions are met:
-    - The user has enough privileges to fire the transition
     - The Sample Partition is active (neither inactive nor cancelled state)
     - The Sample Partition has assigned a Preservation that uses a Container
       that doesn't come pre-preserved already.
@@ -58,8 +71,8 @@ def guard_preserve(partition):
     """Returns true if the 'preserve' transition can be performed to the sample
     partition passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample Partition is active (neither inactive nor cancelled state).
+    Returns True if the state of the Sample Partition is active (neither
+    inactive nor cancelled state).
 
     Note that if the sample partition reached a state ('to_be_preserved') from
     which this transition can be performed, there is no need then if sampling
@@ -81,8 +94,8 @@ def guard_schedule_sampling(partition):
     """Returns true if the 'schedule_sampling' transition can be performed to
     the sample partition passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample Partition is active (neither inactive nor cancelled state).
+    Returns True if the state of the Sample Partition is active (neither
+    inactive nor cancelled state).
 
     Note that if the sample partition reached a state ('to_be_sampled') from
     which this transition can be performed, there is no need then if sampling
@@ -104,8 +117,8 @@ def guard_sample(partition):
     """Returns true if the 'sample' transition can be performed to the sample
     partition passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample Partition is active (neither inactive nor cancelled state).
+    Returns True if the state of the Sample Partition is active (neither
+    inactive nor cancelled state).
 
     :param partition: Partition the transition has to be evaluated against.
     :type partition: SamplePartition
@@ -119,8 +132,8 @@ def guard_sample_due(partition):
     """Returns true if the 'sample_due' transition can be performed to the
     sample partition passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample Partition is active (neither inactive nor cancelled state).
+    Returns True if the state of the Sample Partition is active (neither
+    inactive nor cancelled state).
 
     :param partition: Partition the transition has to be evaluated against.
     :type partition: SamplePartition
@@ -134,8 +147,8 @@ def guard_receive(partition):
     """Returns true if the 'receive' transition can be performed to the
     sample partition passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample Partition is active (neither inactive nor cancelled state).
+    Returns True if the state of the Sample Partition is active (neither
+    inactive nor cancelled state).
 
     :param partition: Partition the transition has to be evaluated against.
     :type partition: SamplePartition
@@ -150,7 +163,6 @@ def guard_reject(partition):
     sample partition passed in.
 
     Returns True if the following conditions are met:
-    - The user has enough privileges to fire the transition
     - The Sample partition is active (neither inactive nor cancelled state)
     - Rejection workflow is enabled in bika_setup
 
@@ -172,8 +184,23 @@ def guard_dispose(partition):
     """Returns true if the 'dispose' transition can be performed to the
     sample partition passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample Partition is active (neither inactive nor cancelled state).
+    Returns True if the state of the Sample Partition is active (neither
+    inactive nor cancelled state).
+
+    :param partition: Partition the transition has to be evaluated against.
+    :type partition: SamplePartition
+    :returns: True or False
+    :rtype: bool
+    """
+    return isBasicTransitionAllowed(partition)
+
+
+def guard_expire(partition):
+    """Returns true if the 'dispose' transition can be performed to the
+    sample partition passed in.
+
+    Returns True if the state of the Sample Partition is active (neither
+    inactive nor cancelled state).
 
     :param partition: Partition the transition has to be evaluated against.
     :type partition: SamplePartition
@@ -188,7 +215,6 @@ def guard_sample_prep(partition):
     sample partition passed in.
 
     Returns True if the following conditions are met:
-    - The user has enough privileges to fire the transition
     - The Sample Partition is active (neither inactive nor cancelled state)
     - The Sample associated to the Partition has a PreparationWorkflow assigned
 
@@ -208,8 +234,8 @@ def guard_sample_prep_complete(partition):
     """Returns true if the 'sample_prep_complete' transition can be performed
     to the sample partition passed in.
 
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample Partition is active (neither inactive nor cancelled state).
+    Returns True if the state of the Sample Partition is active (neither
+    inactive nor cancelled state).
 
     :param partition: Partition the transition has to be evaluated against.
     :type partition: SamplePartition

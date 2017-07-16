@@ -172,9 +172,9 @@ def GuardHandler(instance, transition_id):
     expression like "python:here.guard_handler('<transition_id>')" is set to
     any given guard (used by default in all bika's DC Workflow guards).
 
-    Walksthorugh bika.lims.workflow.<obj_type>.guards and looks for a function
+    Walks through bika.lims.workflow.<obj_type>.guards and looks for a function
     that matches with 'guard_<transition_id>'. If found, calls the function and
-    returns its value (true or false). If not fouund, returns True by default.
+    returns its value (true or false). If not found, returns True by default.
 
     Example:
     If exists an action with id 'publish' for a given workflow, and there is a
@@ -371,8 +371,11 @@ def isTransitionAllowed(instance, transition_id, active_only=True,
 
     By default, if only instance and transition_id params are used, the
     function will return True only if the instance is not inactive (states
-    cancelled or inactivated) and if there is a workflow that supports this
-    transition/action for the current state of the instance.
+    cancelled or inactivated), if there is a workflow that supports this
+    transition/action for the current state of the instance and the associated
+    guard returns True. This is how this function must be call in most cases,
+    cause guards (called from this function) already take into account eventual
+    conditions required for the transition.
 
     If dependencies parameter (with or without any of the parameters
     target_statuses, check_all or check_history) is set, the dependencies
@@ -382,11 +385,15 @@ def isTransitionAllowed(instance, transition_id, active_only=True,
     'verified' state already (or have been transitioned to that state
     previously). In this particular example, the function call could be like:
 
-        isTransitionAllowed(ar, 'verify', dependencies=ar.getAnalyses(),
+        isTransitionAllowed(instance=analysis_request,
+                            transition_id='verify',
+                            dependencies=ar.getAnalyses(),
                             check_history=True)
 
     IMPORTANT: If this function is called from within a guard context, the
         param check_action should be set to False to prevent recursive looping.
+        Guards make extensive use of this function with dependencies paramter
+        set and check_action=False
 
     :param instance: the instance the transition has to be evaluated against
     :param transition_id: unique id of the transition to be evaluated

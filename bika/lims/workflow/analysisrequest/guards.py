@@ -1,3 +1,4 @@
+# coding=utf-8
 from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import isActive
 from bika.lims.workflow import isBasicTransitionAllowed
@@ -5,62 +6,277 @@ from bika.lims.workflow import isTransitionAllowed
 from bika.lims.workflow import wasTransitionPerformed
 
 
-def guard_to_be_preserved(obj):
-    """Returns true if the 'to_be_preserved' transition can be performed to the
-    obj (Analysis Request) passed in.
+def guard_no_sampling_workflow(analysis_request):
+    """Returns true if the 'no_sampling_workflow' transition can be performed
+    to the analysis request passed in.
 
-    Returns True if the following conditions are met:
-    - The Analysis Request is active (neither inactive nor cancelled state)
-    - The Analysis Request has a Sample assigned
-    - The 'to_be_preserved' transition can be performed to the Sample assigned
-      to the Analysis Request.
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
 
-    :param obj: the Analysis Request the to_be_preserved transition is
-                evaluated against.
-    :type obj: AnalysisRequest
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
     :returns: True or False
     :rtype: bool
     """
-    if not isBasicTransitionAllowed(obj):
-        return False
-
-    sample = obj.getSample()
+    sample = analysis_request.getSample()
     if sample:
-        return isTransitionAllowed(sample, 'to_be_preserved')
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='sampling_workflow',
+                                   dependencies=[sample],
+                                   check_history=True,
+                                   check_action=False)
 
-    return False
 
+def guard_sampling_workflow(analysis_request):
+    """Returns true if the 'sampling_workflow' transition can be performed to
+    the analysis request passed in.
 
-def guard_schedule_sampling(obj):
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
     """
-    Prevent the transition if:
-    - if the user isn't part of the sampling coordinators group
-      and "sampling schedule" checkbox is set in bika_setup
-    - if no date and samples have been defined
-      and "sampling schedule" checkbox is set in bika_setup
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='sampling_workflow',
+                                   dependencies=[sample],
+                                   check_history=True,
+                                   check_action=False)
+
+
+def guard_to_be_preserved(analysis_request):
+    """Returns true if the 'to_be_preserved' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
     """
-    if obj.bika_setup.getScheduleSamplingEnabled() and \
-            isBasicTransitionAllowed(obj):
-        return True
-    return False
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='to_be_preserved',
+                                   dependencies=[sample],
+                                   target_statuses=['to_be_preserved'],
+                                   check_action=False)
 
 
-def guard_receive(obj):
-    return isBasicTransitionAllowed(obj)
+def guard_preserve(analysis_request):
+    """Returns true if the 'preserve' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='preserve',
+                                   dependencies=[sample],
+                                   target_statuses=['sample_due'],
+                                   check_action=False)
 
 
-def guard_sample_prep(obj):
-    sample = obj.getSample()
-    if not sample:
-        return False
-    return isTransitionAllowed(sample, 'sample_prep')
+def guard_schedule_sampling(analysis_request):
+    """Returns true if the 'schedule_sampling' transition can be performed to
+    the analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='schedule_sampling',
+                                   dependencies=[sample],
+                                   target_statuses=['scheduled_sampling'],
+                                   check_action=False)
 
 
-def guard_sample_prep_complete(obj):
-    sample = obj.getSample()
-    if not sample:
-        return False
-    return isTransitionAllowed(sample, 'sample_prep_complete')
+def guard_sample(analysis_request):
+    """Returns true if the 'sample' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='sample',
+                                   dependencies=[sample],
+                                   check_history=True,
+                                   check_action=False)
+
+
+def guard_sample_due(analysis_request):
+    """Returns true if the 'sample_due' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='sample_due',
+                                   dependencies=[sample],
+                                   check_history=True,
+                                   check_action=False)
+
+
+def guard_receive(analysis_request):
+    """Returns true if the 'receive' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='receive',
+                                   dependencies=[sample],
+                                   check_history=True,
+                                   check_action=False)
+
+
+def guard_reject(analysis_request):
+    """Returns true if the 'reject' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='reject',
+                                   dependencies=[sample],
+                                   target_statuses=['rejected'],
+                                   check_action=False)
+
+
+def guard_expire(analysis_request):
+    """Returns true if the 'expire'' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='expire',
+                                   dependencies=[sample],
+                                   target_statuses=['expired'],
+                                   check_action=False)
+
+
+def guard_dispose(analysis_request):
+    """Returns true if the 'reject' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='dispose',
+                                   dependencies=[sample],
+                                   target_statuses=['disposed'],
+                                   check_action=False)
+
+
+def guard_sample_prep(analysis_request):
+    """Returns true if the 'sample_prep' transition can be performed to the
+    analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='sample_prep',
+                                   dependencies=[sample],
+                                   target_statuses=['sample_prep'],
+                                   check_action=False)
+
+
+def guard_sample_prep_complete(analysis_request):
+    """Returns true if the 'sample_prep_complete' transition can be performed
+    to the analysis request passed in.
+
+    Returns True if the transition can be performed to the Sample associated to
+    the analysis request passed in or the Sample has already been transitioned.
+
+    :param analysis_request: Request the transition has to be evaluated against
+    :type analysis_request: AnalysisRequest
+    :returns: True or False
+    :rtype: bool
+    """
+    sample = analysis_request.getSample()
+    if sample:
+        return isTransitionAllowed(instance=analysis_request,
+                                   transition_id='sample_prep_complete',
+                                   dependencies=[sample],
+                                   check_history=True,
+                                   check_action=False)
 
 
 def guard_assign(obj):
@@ -71,10 +287,6 @@ def guard_assign(obj):
     # workflow definition, as well as from here and from content.analysisrequest
     return False
 
-    if not isBasicTransitionAllowed(obj):
-        return False
-    return True
-
 
 def guard_unassign(obj):
     """Allow or disallow transition depending on our children's states
@@ -83,10 +295,6 @@ def guard_unassign(obj):
     # AR to be in an 'assigned' state?. If no, remove the transition from the
     # workflow definition, as well as from here and from content.analysisrequest
     return False
-
-    if not isBasicTransitionAllowed(obj):
-        return False
-    return True
 
 
 def guard_verify(obj):
@@ -178,9 +386,3 @@ def guard_publish(obj):
     :returns: true or false
     """
     return isBasicTransitionAllowed(obj)
-
-
-def guard_reject(obj):
-    if not isBasicTransitionAllowed(obj):
-        return False
-    return obj.bika_setup.isRejectionWorkflowEnabled()
