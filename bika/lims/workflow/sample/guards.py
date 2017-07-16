@@ -5,6 +5,7 @@ from bika.lims.workflow import getReviewHistoryActionsList
 from bika.lims.workflow import isActive
 from bika.lims.workflow import isEndState
 from bika.lims.workflow import isTransitionAllowed
+from lims.workflow import getIncomingTransitionIds
 
 
 def guard_no_sampling_workflow(sample):
@@ -115,7 +116,7 @@ def guard_preserve(sample):
         # The only possible path for a partition to be in a sample_due state
         # is because of 'preserve' or 'sample_due' transitions.
         if getCurrentState(partition) != 'sample_due':
-            possible_trans = ['preserve', 'sample_due']
+            possible_trans = getIncomingTransitionIds(sample, 'sample_due')
             transitions = getReviewHistoryActionsList(partition)
             trans = [trans for trans in transitions if trans in possible_trans]
             if len(trans) == 0:

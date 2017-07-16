@@ -674,6 +674,48 @@ def getTransitionDate(obj, action_id, return_as_datetime=False):
     return None
 
 
+def getTransitionNewState(obj, transition_id):
+    """Returns the new_state after the transition passed in is performed.
+
+    If no transition is found for the object and id passed in, returns None
+
+    :param obj: Object from which its workflow chain have to be inspected
+    :param transition_id: the transition to get the new_state from
+    :type obj: ATContentType
+    :type transition_id: str
+    :returns: the new_state id
+    :rtype: str
+    """
+    incoming = []
+    tool = getToolByName(obj, 'portal_workflow')
+    for workflow in tool.getWorkflowsFor(obj):
+        transitions = workflow.transitions
+        if transition_id in transitions:
+            transition = transitions[transition_id]
+            return transition.new_state_id
+
+
+def getIncomingTransitionIds(obj, state):
+    """Returns the transition ids their new_state is the state passed in
+
+    :param obj: Object from which its workflow chain have to be inspected
+    :param state: the state that is the new_state for the transitions to return
+    :type obj: ATContentType
+    :type state: str
+    :returns: a list with the transition ids
+    :rtype: [str,]
+    """
+    incoming = []
+    tool = getToolByName(obj, 'portal_workflow')
+    for workflow in tool.getWorkflowsFor(obj):
+        transitions = workflow.transitions
+        targets = [id for id, trans in transitions.items()
+                   if trans.new_state_id == state]
+        incoming.extend(targets)
+    return list(set(incoming))
+
+
+
 def changeWorkflowState(content, wf_id, state_id, acquire_permissions=False,
                         portal_workflow=None, **kw):
     """Change the workflow state of an object
