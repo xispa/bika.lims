@@ -847,6 +847,7 @@ class Sample(BaseFolder, HistoryAwareMixin):
     def getSamplePartitions(self):
         """Returns the Sample Partitions associated to this Sample
         """
-        return self.getSamplePartitions()
+        partitions = self.objectValues('SamplePartition')
+        return partitions
 
 atapi.registerType(Sample, PROJECTNAME)
