@@ -4,7 +4,7 @@ from bika.lims.workflow import doActionFor
 
 
 def _cascade_transition(sample, transition_id):
-    """ Performs the transition for the transition_id passed in to children.
+    """Performs the transition for the transition_id passed in to children.
 
     Tries to fire the transition_id passed in for all Sample Partitions that
     belong to the sample passed in. Once done, tries to apply the same
@@ -204,9 +204,9 @@ def after_dispose(sample):
     """Method triggered after a 'dispose' transition for the Sample passed in
     is performed.
 
-    Tries to perform the same transition to the Sample Partitions that belong
-    to the sample passed in. It also stores value for "Date Disposed" field.
-    Note that analysis requests are not affected by this transition.
+    Tries to perform the same transition to Sample Partitions and Analysis
+    Requests associated to the sample passed in. It also stores value for
+    "Date Disposed" field.
 
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
@@ -216,19 +216,16 @@ def after_dispose(sample):
     """
     sample.setDateDisposed(DateTime())
     sample.reindexObject(idxs=["getDateDisposed", ])
-
-    for partition in sample.getSamplePartitions():
-        doActionFor(partition, 'dispose')
+    _cascade_transition(sample, 'dispose')
 
 
 def after_expire(sample):
     """Method triggered after a 'expire' transition for the Sample passed in
     is performed.
 
-    Tries to perform the same transition to the Sample Partitions that belong
-    to the sample passed in. It also stores the value for "Date Expired" field.
-    Note that analysis requests are not affected by this transition. If a
-    Sample has expired, all Sample Partitions must expire too.
+    Tries to perform the same transition to Sample Partitions and Analysis
+    Requests associated to the sample passed in. It also stores value for
+    "Date Expired" field.
 
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
@@ -238,37 +235,39 @@ def after_expire(sample):
     """
     sample.setDateExpired(DateTime())
     sample.reindexObject(idxs=["getDateExpired", ])
-
-    for partition in sample.getSamplePartitions():
-        doActionFor(partition, 'expire')
+    _cascade_transition(sample, 'expire')
 
 
 def after_sample_prep(sample):
     """Method triggered after a 'sample_prep' transition for the Sample passed
     in is performed.
 
+    Tries to perform the same transition to Sample Partitions and Analysis
+    Requests associated to the sample passed in.
+
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
 
     :param sample: Sample affected by the transition
     :type sample: Sample
     """
-    # TODO Workflow - Sample after_sample_prep
-    pass
+    _cascade_transition(sample, 'sample_prep')
 
 
 def after_sample_prep_complete(sample):
     """Method triggered after a 'sample_prep_complete' transition for the
     Sample passed in is performed.
 
+    Tries to perform the same transition to Sample Partitions and Analysis
+    Requests associated to the sample passed in.
+
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
 
     :param sample: Sample affected by the transition
     :type sample: Sample
     """
-    # TODO Workflow - Sample after_sample_prep_complete
-    pass
+    _cascade_transition(sample, 'sample_prep_complete')
 
 
 def after_cancel(sample):
