@@ -1,6 +1,7 @@
 # coding=utf-8
 from DateTime import DateTime
 from bika.lims.workflow import doActionFor
+from bika.lims.workflow import isTransitionAllowed
 
 
 def _cascade_promote_transition(partition, transition_id):
@@ -38,6 +39,21 @@ def after_no_sampling_workflow(partition):
     Tries to perform the same transition to all the analyses and parent sample
     associated to the partition passed in.
 
+    Once done, does the following:
+
+    a) If parent Sample has the sampling workflow enabled and the partition has
+       a preservation set:
+       The function tries to perform the "to_be_preserved" transition to the
+       Sample Partition itself.
+
+    b) If parent Sample has the sampling workflow disabled
+       The function tries to perform the "sample_due" transition to the Sample
+       Partition itself.
+
+    Note that in both cases (a or b), the transition ultimately performed to
+    the Sample Partition will be triggered to children (analyses) and escalated
+    to parents (Sample and Analysis Requests).
+
     This function is called automatically by
     bika.lims.workflow.AfterTransitionEventHandler
 
@@ -45,6 +61,14 @@ def after_no_sampling_workflow(partition):
     :type partition: SamplePartition
     """
     _cascade_promote_transition(partition, 'no_sampling_workflow')
+
+    if isTransitionAllowed(partition, 'to_be_preserved'):
+        # The partition requires to be preserved
+        doActionFor(partition, 'to_be_preserved')
+        return
+
+    # Automatic transition to sample due
+    doActionFor(partition, 'sample_due')
 
 
 def after_sampling_workflow(partition):
@@ -70,10 +94,21 @@ def after_to_be_preserved(partition):
     Tries to perform the same transition to all the analyses and parent sample
     associated to the partition passed in.
 
+    If the container used for this partition already comes pre-preserved (so
+    there is no additional action to be made by the sample collector, then
+    fires the 'preserve' transition automatically.
+
     :param partition: Sample partition affected by the transition
     :type partition: SamplePartition
     """
     _cascade_promote_transition(partition, 'to_be_preserved')
+
+    # If the container used for this partition already comes pre-preserved (so
+    # there is no additional action to be made by the sample collector, then
+    # fire the 'preserve' transition automatically
+    container = partition.getContainer()
+    if container and container.getPrePreserved():
+        doActionFor(partition, 'preserve')
 
 
 def after_preserve(partition):
@@ -140,10 +175,8 @@ def after_sample(partition):
     """
     _cascade_promote_transition(partition, 'sample')
 
-    sample = partition.getSample()
-    if sample.getSamplingWorkflowEnabled() and partition.getPreservation():
-        # The partition requires to be preserved, automatic transition to
-        # to_be_preserved
+    if isTransitionAllowed(partition, 'to_be_preserved'):
+        # The partition requires to be preserved
         doActionFor(partition, 'to_be_preserved')
         return
 

@@ -149,6 +149,7 @@ def guard_sample_due(analysis_request):
         return isTransitionAllowed(instance=analysis_request,
                                    transition_id='sample_due',
                                    dependencies=[sample],
+                                   target_statuses=['sample_due'],
                                    check_history=True,
                                    check_action=False)
 

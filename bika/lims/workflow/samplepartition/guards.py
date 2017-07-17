@@ -94,8 +94,9 @@ def guard_schedule_sampling(partition):
     """Returns true if the 'schedule_sampling' transition can be performed to
     the sample partition passed in.
 
-    Returns True if the state of the Sample Partition is active (neither
-    inactive nor cancelled state).
+    Returns True if the following conditions are met:
+    - The Sample partition is active (neither inactive nor cancelled state)
+    - Schedule Sampling workflow is enabled in bika_setup
 
     Note that if the sample partition reached a state ('to_be_sampled') from
     which this transition can be performed, there is no need then if sampling
@@ -110,6 +111,9 @@ def guard_schedule_sampling(partition):
     :returns: True or False
     :rtype: bool
     """
+    if not partition.bika_setup.getScheduleSamplingEnabled():
+        return False
+
     return isBasicTransitionAllowed(partition)
 
 
@@ -165,9 +169,6 @@ def guard_reject(partition):
     Returns True if the following conditions are met:
     - The Sample partition is active (neither inactive nor cancelled state)
     - Rejection workflow is enabled in bika_setup
-
-    Returns True if the user has enough privileges to fire the transition and
-    the Sample Partition is active (neither inactive nor cancelled state).
 
     :param partition: Partition the transition has to be evaluated against.
     :type partition: SamplePartition
