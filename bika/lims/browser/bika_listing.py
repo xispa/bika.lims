@@ -102,6 +102,7 @@ class WorkflowAction:
             selected_items[uid] = item
         return selected_items
 
+
     def workflow_action_default(self, action, came_from):
         if came_from in ['workflow_action', 'edit']:
             # If a single item was acted on we will create the item list
@@ -124,7 +125,7 @@ class WorkflowAction:
             message = _('No items selected')
             self.context.plone_utils.addPortalMessage(message, 'warn')
         self.request.response.redirect(self.destination_url)
-        return
+
 
     def workflow_action_copy_to_new(self):
         """Invoke the ar_add form in the current context, passing the UIDs of
@@ -157,6 +158,7 @@ class WorkflowAction:
         action, came_from = self._get_form_workflow_action()
 
         if action:
+            # TODO Workflow - Call action from bikalisting
             # Call out to the workflow action method
             # Use default bika_listing.py/WorkflowAction for other transitions
             method_name = 'workflow_action_' + action
@@ -165,9 +167,13 @@ class WorkflowAction:
                 raise Exception("Shouldn't Happen: %s.%s not callable." %
                                 (self, method_name))
             if method:
+                clazz = self.__class__.__name__
+                warnmsg = 'Workflow call: {0}.{1}'.format(clazz, method_name)
+                logger.warn(warnmsg)
                 method()
             else:
                 self.workflow_action_default(action, came_from)
+
         if form.get('bika_listing_filter_bar_submit', ''):
             # Getting all the filter inputs with the key starting with:
             # 'bika_listing_filter_bar_'
@@ -192,43 +198,42 @@ class WorkflowAction:
         """
         dest = None
         transitioned = []
-        workflow = getToolByName(self.context, 'portal_workflow')
-        # transition selected items from the bika_listing/Table.
         for item in items:
-            # TODO Workflow - Remove skips here and review code
-            # the only actions allowed on inactive/cancelled
-            # items are "reinstate" and "activate"
-            if not isActive(item) and action not in ('reinstate', 'activate'):
+            if item.UID() in transitioned:
                 continue
-            if not skip(item, action, peek=True):
-                allowed_transitions = [it['id'] for it in \
-                                       workflow.getTransitionsFor(item)]
-                if action in allowed_transitions:
-                    success = False
-                    # if action is "verify" and the item is an analysis or
-                    # reference analysis, check if the if the required number
-                    # of verifications done for the analysis is, at least,
-                    # the number of verifications performed previously+1
-                    if (action == 'verify' and
-                        hasattr(item, 'getNumberOfVerifications') and
-                        hasattr(item, 'getNumberOfRequiredVerifications')):
-                        success = True
-                        revers = item.getNumberOfRequiredVerifications()
-                        nmvers = item.getNumberOfVerifications()
-                        username=getToolByName(self.context,'portal_membership').getAuthenticatedMember().getUserName()
-                        item.addVerificator(username)
-                        if revers-nmvers <= 1:
-                            success, message = doActionFor(item, action)
-                            if not success:
-                                # If failed, delete last verificator.
-                                item.deleteLastVerificator()
-                        item.reindexObject()
-                    else:
-                        success, message = doActionFor(item, action)
-                    if success:
-                        transitioned.append(item.UID())
-                    else:
-                        self.context.plone_utils.addPortalMessage(message, 'error')
+
+            success = False
+            message = ''
+
+            # TODO Workflow - Verify - move to guards/events
+            # if action is "verify" and the item is an analysis or
+            # reference analysis, check if the if the required number
+            # of verifications done for the analysis is, at least,
+            # the number of verifications performed previously+1
+            if (action == 'verify' and
+                hasattr(item, 'getNumberOfVerifications') and
+                hasattr(item, 'getNumberOfRequiredVerifications')):
+                success = True
+                revers = item.getNumberOfRequiredVerifications()
+                nmvers = item.getNumberOfVerifications()
+                username=getToolByName(self.context,'portal_membership').getAuthenticatedMember().getUserName()
+                item.addVerificator(username)
+                if revers-nmvers <= 1:
+                    success, message = doActionFor(item, action)
+                    if not success:
+                        # If failed, delete last verificator.
+                        item.deleteLastVerificator()
+                item.reindexObject()
+
+            else:
+                success, message = doActionFor(item, action)
+
+            if success:
+                transitioned.append(item.UID())
+            else:
+                self.context.plone_utils.addPortalMessage(message, 'error')
+
+        # TODO Workflow - Automatic lavel printing on receive
         # automatic label printing
         if transitioned and action == 'receive' \
             and 'receive' in self.portal.bika_setup.getAutoPrintStickers():
