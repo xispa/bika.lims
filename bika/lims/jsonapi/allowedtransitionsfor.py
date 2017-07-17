@@ -79,8 +79,7 @@ class allowedTransitionsFor(object):
                 allowed_transitions.append({'uid': obj.UID(),
                                             'transitions': transitions})
         except Exception as e:
-            msg = "Cannot get the allowed transitions for '{0}' ({1})".format(
-                uid, e.message)
+            msg = "Cannot get allowed transitions: {0}".format( e.message)
             raise BadRequest(msg)
 
         ret = {
