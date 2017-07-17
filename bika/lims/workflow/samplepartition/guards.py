@@ -174,7 +174,7 @@ def guard_reject(partition):
     :returns: True or False
     :rtype: bool
     """
-    if not partition.bika_setup.getRejectionWorkflowEnabled():
+    if not partition.bika_setup.isRejectionWorkflowEnabled():
         return False
 
     return isBasicTransitionAllowed(partition)
