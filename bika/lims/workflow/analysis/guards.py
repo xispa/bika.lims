@@ -1,4 +1,5 @@
 from Products.CMFCore.utils import getToolByName
+from bika.lims.workflow import getCurrentState
 from bika.lims.workflow import isBasicTransitionAllowed
 from bika.lims.workflow import isTransitionAllowed
 from bika.lims.workflow import wasTransitionPerformed
@@ -21,12 +22,12 @@ def guard_submit(obj):
     :returns: True or False
     :rtype: bool
     """
-    if not isBasictransitionAllowed(obj):
+    if not isBasicTransitionAllowed(obj):
         return False
 
     # If the state is sample_due, only permit the submit transition if the
     # point of capture is 'field'
-    state = getCurrentState(oj)
+    state = getCurrentState(obj)
     if state == 'sample_due' and obj.getPointOfCapture() != 'field':
         return False
 
@@ -74,6 +75,7 @@ def guard_to_be_preserved(obj):
     if not part:
         return False
     return isTransitionAllowed(part, 'to_be_preserved')
+
 
 def guard_retract(obj):
     """ Returns true if the sample transition can be performed for the sample
@@ -175,7 +177,7 @@ def guard_new_verify(obj):
         # The analysis can only be verified it all its dependencies have
         # already been verified
         for dep in obj.getDependencies():
-            if not verify(dep):
+            if not isTransitionAllowed(dep, 'verify'):
                 return False
 
     revers = obj.getNumberOfRequiredVerifications()
