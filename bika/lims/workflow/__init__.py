@@ -213,8 +213,8 @@ def GuardHandler(instance, transition_id):
     if not guard:
         return True
 
-    pack = '{0}.guards'.format(clazzname.lower())
-    logger.info("{0}.{1}".format(pack, key))
+    #pack = '{0}.guards'.format(clazzname.lower())
+    #logger.info("{0}.{1}".format(pack, key))
     return guard(instance)
 
 
@@ -908,15 +908,11 @@ def _load_wf_module(modrelname):
     tokens = modrelname.split('.')
     for part in tokens:
         modname = '.'.join([modname, part]) if modname else part
-        modulepath = '{0}.{1}'.format(rootmodname, modname)
         import importlib
         try:
-            logger.info("Importing {0}".format(modulepath))
             _module = importlib.import_module('.'+modname, package=rootmodname)
             if not _module:
-                logger.warn("Cannot import {0}".format(modulepath))
                 return None
         except Exception as e:
-            logger.warn("Cannot import {0}".format(modulepath))
             return None
     return sys.modules.get(modulekey, None)
