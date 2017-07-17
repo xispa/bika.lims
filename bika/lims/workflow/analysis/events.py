@@ -28,7 +28,7 @@ def before_submit(obj):
     """
     dependencies = obj.getDependencies()
     for dependency in dependencies:
-        doActionFor('submit')
+        doActionFor(dependency, 'submit')
 
 
 def after_submit(obj):
