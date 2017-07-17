@@ -5,7 +5,7 @@ from bika.lims.workflow import getReviewHistoryActionsList
 from bika.lims.workflow import isActive
 from bika.lims.workflow import isEndState
 from bika.lims.workflow import isTransitionAllowed
-from lims.workflow import getIncomingTransitionIds
+from bika.lims.workflow import getIncomingTransitionIds
 
 
 def guard_no_sampling_workflow(sample):
