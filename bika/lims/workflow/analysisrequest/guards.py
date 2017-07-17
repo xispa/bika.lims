@@ -23,6 +23,7 @@ def guard_no_sampling_workflow(analysis_request):
         return isTransitionAllowed(instance=analysis_request,
                                    transition_id='no_sampling_workflow',
                                    dependencies=[sample],
+                                   target_statuses=['sampled'],
                                    check_history=True,
                                    check_action=False)
 
@@ -44,6 +45,7 @@ def guard_sampling_workflow(analysis_request):
         return isTransitionAllowed(instance=analysis_request,
                                    transition_id='sampling_workflow',
                                    dependencies=[sample],
+                                   target_statuses=['to_be_sampled'],
                                    check_history=True,
                                    check_action=False)
 
@@ -128,6 +130,7 @@ def guard_sample(analysis_request):
         return isTransitionAllowed(instance=analysis_request,
                                    transition_id='sample',
                                    dependencies=[sample],
+                                   target_statuses=['sampled'],
                                    check_history=True,
                                    check_action=False)
 
@@ -171,6 +174,7 @@ def guard_receive(analysis_request):
         return isTransitionAllowed(instance=analysis_request,
                                    transition_id='receive',
                                    dependencies=[sample],
+                                   target_statuses=['sample_received'],
                                    check_history=True,
                                    check_action=False)
 
