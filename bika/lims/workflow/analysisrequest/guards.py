@@ -21,7 +21,7 @@ def guard_no_sampling_workflow(analysis_request):
     sample = analysis_request.getSample()
     if sample:
         return isTransitionAllowed(instance=analysis_request,
-                                   transition_id='sampling_workflow',
+                                   transition_id='no_sampling_workflow',
                                    dependencies=[sample],
                                    check_history=True,
                                    check_action=False)
