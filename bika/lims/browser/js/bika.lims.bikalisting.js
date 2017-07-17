@@ -308,23 +308,24 @@ function BikaListingTableView() {
 				event.preventDefault()
 			}
 			// check the item's checkbox
-			form_id = $(this).parents("form").attr("id")
-			uid = $(this).attr("uid")
-			if (!($("#" + form_id + "_cb_" + uid).prop("checked"))) {
-				$("#" + form_id + "_cb_" + uid).prop("checked", true)
-			}
+			var form_id = $(this).parents("form").attr("id")
+			var uid = $(this).attr("uid")
+			var checkbox = $("#" + form_id + "_cb_" + uid);
+            var blst = $(checkbox).parents("table.bika-listing-table");
+			$(checkbox).prop('checked', true);
+            render_transition_buttons(blst);
 		})
 	}
 
 	function listing_string_select_changed() {
 		// always select checkbox when selectable listing item is changed
 		$(".listing_select_entry").live("change", function () {
-			form_id = $(this).parents("form").attr("id")
-			uid = $(this).attr("uid")
-			// check the item's checkbox
-			if (!($("#" + form_id + "_cb_" + uid).prop("checked"))) {
-				$("#" + form_id + "_cb_" + uid).prop("checked", true)
-			}
+			var form_id = $(this).parents("form").attr("id")
+			var uid = $(this).attr("uid")
+			var checkbox = $("#" + form_id + "_cb_" + uid);
+            var blst = $(checkbox).parents("table.bika-listing-table");
+			$(checkbox).prop('checked', true);
+            render_transition_buttons(blst);
 		})
 	}
 
