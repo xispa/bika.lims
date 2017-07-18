@@ -41,7 +41,6 @@ from bika.lims.permissions import Verify as VerifyPermission
 from bika.lims.utils import dicts_to_dict, getUsers
 from bika.lims.utils import user_email
 from bika.lims.utils import user_fullname
-from bika.lims.utils.analysisrequest import notify_rejection
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getTransitionActor
 from bika.lims.workflow import getTransitionDate
