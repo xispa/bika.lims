@@ -104,6 +104,9 @@ def guard_preserve(sample):
     :returns: True or False
     :rtype: bool
     """
+    # TODO Workflow - Preserve should only be available for Partitions. Once
+    # all partitions are transitioned, then transition the Sample, but not the
+    # other way round
     partitions = sample.getSamplePartitions()
     for partition in partitions:
         if not isActive(partition):

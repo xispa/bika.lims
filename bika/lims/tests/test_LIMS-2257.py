@@ -8,6 +8,7 @@ from bika.lims.content.analysis import Analysis
 from bika.lims.testing import BIKA_FUNCTIONAL_TESTING
 from bika.lims.tests.base import BikaFunctionalTestCase
 from bika.lims.utils.analysisrequest import create_analysisrequest
+from bika.lims.workflow import doActionFor
 from plone.app.testing import login, logout
 from plone.app.testing import TEST_USER_NAME
 from Products.CMFCore.utils import getToolByName
@@ -53,7 +54,6 @@ class LIMS2257(BikaFunctionalTestCase):
         This test validates the function
         bika/lims//browser/analysisrequest/workflow.py/workflow_action_schedule_sampling
         """
-        from bika.lims.utils.workflow import schedulesampling
         workflow = getToolByName(self.portal, 'portal_workflow')
         pc = getToolByName(self.portal, 'portal_catalog')
         sampler = api.user.get(username='sampler1')
@@ -84,7 +84,7 @@ class LIMS2257(BikaFunctionalTestCase):
         login(self.portal, 'cord1')
         # If ScheduledSamplingSampler is empty and ScheduleSamplingEnabled,
         # no workflow_action_schedule_sampling can be done
-        schedulesampling.doTransition(ar.getSample())
+        doActionFor(ar.getSample(), 'schedule_sampling')
         self.assertEqual(
             workflow.getInfoFor(ar, 'review_state'), 'to_be_sampled')
         self.assertEqual(
@@ -92,7 +92,7 @@ class LIMS2257(BikaFunctionalTestCase):
             'to_be_sampled')
         # set a value in ScheduledSamplingSampler
         ar.setScheduledSamplingSampler(sampler)
-        schedulesampling.doTransition(ar.getSample())
+        doActionFor(ar.getSample(), 'schedule_sampling')
         self.assertEqual(
             workflow.getInfoFor(ar, 'review_state'), 'scheduled_sampling')
         self.assertEqual(

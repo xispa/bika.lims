@@ -34,27 +34,42 @@ class allowedTransitionsFor(object):
         Required parameters:
             - uid: the uid of the object to get the allowed transitions
         """
-        plone.protect.CheckAuthenticator(self.request)
-        uc = getToolByName(context, 'uid_catalog')
-        uid = request.get('uid', '')
-        if not uid:
-            raise BadRequest("No object UID specified in request")
-        allowed_transitions = []
-        try:
-            obj = uc(UID=uid)[0].getObject()
-            allowed_transitions = getAllowedTransitions(obj)
-        except Exception as e:
-            msg = "Cannot get the allowed transitions for '{0}' ({1})".format(
-                uid, e.message)
-            raise BadRequest(msg)
+        plone.protect.CheckAuthenticator(request)
+        obj = None
+        if request.get('uid', ''):
+            uid = request['uid']
+            uc = getToolByName(context, 'uid_catalog')
+            obj = uc(UID=uid)
+            if len(obj) != 1:
+                obj = None
+            else:
+                obj = obj[0].getObject()
+
+        if not obj and request.get('obj_path', ''):
+            obj_path = request['obj_path']
+            site_path = context.portal_url.getPortalObject().getPhysicalPath()
+            if site_path and isinstance(site_path, basestring):
+                site_path = site_path if site_path.startswith(
+                    '/') else '/' + site_path
+                obj = context.restrictedTraverse(site_path + obj_path)
+            elif site_path and len(site_path) > 1:
+                site_path = site_path[1]
+                site_path = site_path if site_path.startswith(
+                    '/') else '/' + site_path
+                obj = context.restrictedTraverse(site_path + obj_path)
+
         ret = {
-            "url": router.url_for("allowedTransitionsFor",
-                                  force_external=True),
-            "success": True,
-            "error": False,
-            "transitions": allowed_transitions
+            "url": router.url_for("allowedTransitionsFor", force_external=True),
+            "success": False,
+            "error": True,
+            "transitions": []
         }
+        if obj:
+            ret['transitions'] = getAllowedTransitions(obj)
+            ret['success'] = True
+            ret['error'] = False
         return ret
+
 
     def allowed_transitions_for_many(self, context, request):
         """/@@API/allowedTransitionsFor_many: Returns a list of dictionaries. Each

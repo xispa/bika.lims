@@ -680,6 +680,7 @@ function BikaListingTableView() {
             //success alert
             if (data != null && data['success'] == true) {
                 bika.lims.SiteView.notificationPanel(anch + ': ' + name + ' updated successfully', "succeed");
+                // TODO Workflow - actions - clear tr's allowed_transitions
             } else {
                 bika.lims.SiteView.notificationPanel('Error while updating ' + name + ' for '+ anch, "error");
                 var msg = '[bika.lims.analysisrequest.js] Error while updating ' + name + ' for '+ ar;

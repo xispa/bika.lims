@@ -96,6 +96,8 @@ def guard_schedule_sampling(partition):
 
     Returns True if the following conditions are met:
     - The Sample partition is active (neither inactive nor cancelled state)
+    - The Sample associated to the partition has values set for SamplingDate
+      and ScheduledSamplingSampler values
     - Schedule Sampling workflow is enabled in bika_setup
 
     Note that if the sample partition reached a state ('to_be_sampled') from
@@ -114,22 +116,35 @@ def guard_schedule_sampling(partition):
     if not partition.bika_setup.getScheduleSamplingEnabled():
         return False
 
-    return isBasicTransitionAllowed(partition)
+    sample = partition.getSample()
+    if sample:
+        sampler = sample.getScheduledSamplingSampler()
+        sampling_date = sample.getSamplingDate()
+        if sampler and sampling_date:
+            return isBasicTransitionAllowed(partition)
+
+    return False
 
 
 def guard_sample(partition):
     """Returns true if the 'sample' transition can be performed to the sample
     partition passed in.
 
-    Returns True if the state of the Sample Partition is active (neither
-    inactive nor cancelled state).
+    Returns True if the following conditions are met:
+    - The Sample Partition is active (neither inactive nor cancelled state)
+    - The associated Sample has values set for DateSampled and Sampler
 
     :param partition: Partition the transition has to be evaluated against.
     :type partition: SamplePartition
     :returns: True or False
     :rtype: bool
     """
-    return isBasicTransitionAllowed(partition)
+    sample = partition.getSample()
+    if sample:
+        date_sampled = sample.getDateSampled()
+        sampler = sample.getSampler()
+        if date_sampled and sampler:
+            return isBasicTransitionAllowed(partition)
 
 
 def guard_sample_due(partition):
