@@ -23,11 +23,12 @@ from bika.lims.browser import BrowserView
 from bika.lims.browser.bika_listing_filter_bar import BikaListingFilterBar
 from bika.lims.interfaces import IFieldIcons
 from bika.lims.utils import getFromString
-from bika.lims.utils import isActive, getHiddenAttributesForClass
+from bika.lims.utils import getHiddenAttributesForClass
 from bika.lims.utils import t
 from bika.lims.utils import to_utf8
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getAllowedTransitions
+from bika.lims.workflow import isActive
 from bika.lims.workflow import skip
 from plone.app.content.browser import tableview
 from plone.i18n.normalizer.interfaces import IIDNormalizer

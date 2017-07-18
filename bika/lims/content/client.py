@@ -17,7 +17,7 @@ from bika.lims import interfaces
 from bika.lims.config import *
 from bika.lims.content.organisation import Organisation
 from bika.lims.interfaces import IClient
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from zope.component import getUtility
 from zope.interface import implements
 from zope.interface.declarations import alsoProvides

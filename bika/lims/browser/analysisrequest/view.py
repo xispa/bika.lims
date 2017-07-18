@@ -13,7 +13,7 @@ from bika.lims.browser.header_table import HeaderTableView
 from bika.lims.browser.sample import SamplePartitionsView
 from bika.lims.config import POINTS_OF_CAPTURE
 from bika.lims.permissions import *
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from bika.lims.utils import to_utf8
 from bika.lims.workflow import doActionFor
 from DateTime import DateTime

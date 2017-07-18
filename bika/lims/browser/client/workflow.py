@@ -11,7 +11,7 @@ from Acquisition import aq_parent, aq_inner
 from bika.lims import bikaMessageFactory as _
 from bika.lims.browser.analysisrequest import AnalysisRequestWorkflowAction
 from bika.lims.subscribers import doActionFor
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from DateTime import DateTime
 from Products.Archetypes.config import REFERENCE_CATALOG
 from Products.CMFCore.utils import getToolByName

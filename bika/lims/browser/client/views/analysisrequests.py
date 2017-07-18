@@ -6,7 +6,7 @@
 from bika.lims import bikaMessageFactory as _
 from bika.lims.browser.analysisrequest import AnalysisRequestsView
 from bika.lims.permissions import *
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from bika.lims.utils import t
 from Products.CMFCore.utils import getToolByName
 

@@ -13,7 +13,7 @@ from bika.lims.browser.referenceanalysis import AnalysesRetractedListReport
 from bika.lims.permissions import EditResults, EditWorksheet, ManageWorksheets
 from bika.lims.subscribers import doActionFor
 from bika.lims.subscribers import skip
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from Products.Archetypes.config import REFERENCE_CATALOG
 from Products.CMFCore.utils import getToolByName
 from Products.CMFCore.WorkflowCore import WorkflowException

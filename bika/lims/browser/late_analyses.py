@@ -9,7 +9,7 @@ from Products.CMFCore.utils import getToolByName
 from bika.lims import bikaMessageFactory as _
 from bika.lims.utils import t
 from bika.lims.browser.bika_listing import BikaListingView
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from zope.component import getMultiAdapter
 import plone
 

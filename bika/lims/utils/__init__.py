@@ -9,7 +9,7 @@ from AccessControl import getSecurityManager
 from AccessControl import ModuleSecurityInfo, allow_module
 
 import math
-
+from bika.lims import deprecated
 from bika.lims import logger
 from bika.lims.browser import BrowserView
 from DateTime import DateTime
@@ -116,17 +116,11 @@ def getUsers(context, roles, allow_empty=True):
     pairs.sort(lambda x, y: cmp(x[1], y[1]))
     return DisplayList(pairs)
 
+
+@deprecated('[1707] bika.lims.workflow.isActive')
 def isActive(obj):
-    """ Check if obj is inactive or cancelled.
-    """
-    wf = getToolByName(obj, 'portal_workflow')
-    if (hasattr(obj, 'inactive_state') and obj.inactive_state == 'inactive') or \
-       wf.getInfoFor(obj, 'inactive_state', 'active') == 'inactive':
-        return False
-    if (hasattr(obj, 'cancellation_state') and obj.inactive_state == 'cancelled') or \
-       wf.getInfoFor(obj, 'cancellation_state', 'active') == 'cancelled':
-        return False
-    return True
+    from bika.lims.workflow import isActive as _isActive
+    return _isActive(obj)
 
 
 def formatDateQuery(context, date_id):

@@ -16,7 +16,7 @@ from bika.lims.config import QCANALYSIS_TYPES
 from bika.lims.interfaces import IResultOutOfRange
 from bika.lims.permissions import *
 from bika.lims.permissions import Verify as VerifyPermission
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from bika.lims.utils import getUsers
 from bika.lims.utils import formatDecimalMark
 from DateTime import DateTime

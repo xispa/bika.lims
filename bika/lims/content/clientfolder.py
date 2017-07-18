@@ -3,7 +3,7 @@
 # Copyright 2011-2016 by it's authors.
 # Some rights reserved. See LICENSE.txt, AUTHORS.txt.
 
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 """ClientFolder is a container for Client instances.
 """
 from Products.ATContentTypes.content import schemata

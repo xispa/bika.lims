@@ -19,7 +19,7 @@ from Products.Archetypes.utils import DisplayList
 from plone import api
 from zope.interface import implements
 
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from bika.lims.interfaces import IContact
 from bika.lims.content.person import Person
 from bika.lims.config import PROJECTNAME

@@ -7,7 +7,7 @@ from bika.lims import bikaMessageFactory as _
 from bika.lims.browser import BrowserView
 from bika.lims.browser.bika_listing import BikaListingView
 from bika.lims.permissions import *
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from bika.lims.utils import tmpID
 from plone.app.layout.globals.interfaces import IViewView
 from Products.CMFCore.utils import getToolByName

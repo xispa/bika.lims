@@ -10,7 +10,7 @@ from bika.lims.browser.bika_listing import WorkflowAction
 from bika.lims.idserver import renameAfterCreation
 from bika.lims.permissions import *
 from bika.lims.utils import encode_header
-from bika.lims.utils import isActive
+from bika.lims.workflow import isActive
 from bika.lims.utils import tmpID
 from bika.lims.utils import to_utf8
 from bika.lims.workflow import changeWorkflowState
