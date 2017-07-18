@@ -9,7 +9,6 @@ from AccessControl import getSecurityManager
 from AccessControl import ModuleSecurityInfo, allow_module
 
 import math
-from bika.lims import deprecated
 from bika.lims import logger
 from bika.lims.browser import BrowserView
 from DateTime import DateTime
@@ -115,12 +114,6 @@ def getUsers(context, roles, allow_empty=True):
         pairs.append((uid, fullname))
     pairs.sort(lambda x, y: cmp(x[1], y[1]))
     return DisplayList(pairs)
-
-
-@deprecated('[1707] bika.lims.workflow.isActive')
-def isActive(obj):
-    from bika.lims.workflow import isActive as _isActive
-    return _isActive(obj)
 
 
 def formatDateQuery(context, date_id):
