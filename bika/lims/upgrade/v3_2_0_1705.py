@@ -22,6 +22,7 @@ from bika.lims.upgrade import upgradestep
 from bika.lims.upgrade.utils import UpgradeUtils
 from bika.lims.upgrade.utils import migrate_to_blob
 from plone.api.portal import get_tool
+import transaction
 
 product = 'bika.lims'
 version = '3.2.0.1705'
@@ -544,6 +545,7 @@ def migrate_refs(rel, fieldname, pgthreshold=100):
             if i and not divmod(i, pgthreshold)[1]:
                 logger.info("%s/%s %s/%s" % (i, len(refs), obj, rel))
             touidref(obj, obj, rel, fieldname)
+    transaction.commit()
 
 
 def del_at_refs(rel):
@@ -562,6 +564,7 @@ def del_at_refs(rel):
                 ref_obj.aq_parent.manage_delObjects([ref_id])
     if removed:
         logger.info("Performed %s deletions" % removed)
+    transaction.commit()
     return removed
 
 
