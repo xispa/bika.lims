@@ -10,7 +10,11 @@ from bika.lims.upgrade import upgradestep
 from bika.lims.upgrade.utils import UpgradeUtils
 from plone.api.portal import get_tool
 from Products.CMFCore.utils import getToolByName
+import transaction
+from Products.CMFPlone.utils import _createObjectByType
+from bika.lims.utils import tmpID
 from bika.lims.catalog import CATALOG_ANALYSIS_REQUEST_LISTING
+from bika.lims.catalog import CATALOG_ANALYSIS_LISTING
 
 from Products.CMFCore.Expression import Expression
 from Products.CMFCore.utils import getToolByName
@@ -67,8 +71,14 @@ def upgrade(tool):
     ut.addColumn(CATALOG_ANALYSIS_REQUEST_LISTING, 'getDistrict')
     ut.addColumn(CATALOG_ANALYSIS_REQUEST_LISTING, 'getProvince')
 
+    # Add getClientTitle to Analyses catalog to enable filtering by Client.
+    ut.addIndex(CATALOG_ANALYSIS_LISTING, 'getClientTitle', 'FieldIndex')
+
     create_report_catalog(portal, ut)
     ut.refreshCatalogs()
+
+    # Replace 'None' Categories of Analysis Services with 'Unknown'
+    handle_AS_wo_category(portal)
 
     logger.info("{0} upgraded to version {1}".format(product, version))
     return True
@@ -140,9 +150,52 @@ def removeDatePublishedFromAR(portal):
             delattr(obj, f_name)
             counter += 1
         tot_counter += 1
-        logger.info("Removing Date Published attribute from ARs: %d of %d" % (tot_counter, total))
+        if tot_counter % 1000 == 0:
+            logger.info(
+                "Removing Date Published attribute from "
+                "ARs: %d of %d" % (tot_counter, total))
+            transaction.commit()
+    logger.info(
+        "'DatePublished' attribute has been removed from %d "
+        "AnalysisRequest objects." % counter)
 
-    logger.info("'DatePublished' attribute has been removed from %d AnalysisRequest objects."
+
+def handle_AS_wo_category(portal):
+    """
+    Apparently, some of Analysis Services remained without category after migration.
+    Creating a new Category ('unknown') and assigning those AS'es to it.
+    """
+    uc = getToolByName(portal, 'bika_setup_catalog')
+    services = uc(portal_type='AnalysisService', getCategoryUID=None)
+    if not services:
+        logger.info("SKIPPING. There is no Analysis Service without category.")
+        return
+
+    # First , create a new 'Uknown' Category, if doesn't exist
+    uc = getToolByName(portal, 'uid_catalog')
+    acats = uc(portal_type='AnalysisCategory')
+    for acat in acats:
+        if acat.Title == 'Unknown':
+            logger.info("Category 'Uknown' already exists...")
+            category = acat.getObject()
+            break
+    else:
+        category = _createObjectByType("AnalysisCategory", portal.bika_setup.bika_analysiscategories, tmpID())
+        category.setTitle("Unknown")
+        category._renameAfterCreation()
+        category.reindexObject()
+        logger.info("Category 'Uknown' was created...")
+
+    counter = 0
+    total = len(services)
+    for s in services:
+        obj = s.getObject()
+        obj.setCategory(category)
+        obj.reindexObject()
+        counter += 1
+        logger.info("Assigning Analysis Services to 'unknown' Category: %d of %d" % (counter, total))
+
+    logger.info("Done! %d AnalysisServices were assigned to the Category 'unknown'."
                 % counter)
 
 

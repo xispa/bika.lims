@@ -442,7 +442,7 @@ function AnalysisRequestAnalysesView() {
         ////////////////////////////////////////
         // checkboxes in services list
         $("[name='uids:list']").live("click", function(){
-            calcdependencies([this]);
+            calcdependencies([this], true);
             var service_uid = $(this).val();
             if ($(this).prop("checked")){
                 check_service(service_uid);
@@ -452,12 +452,12 @@ function AnalysisRequestAnalysesView() {
         });
 
     }
-
+    /**
+    * This function validates specification inputs
+    * @param {element} The input field from specifications (min, max, err)
+    */
     function validate_spec_field_entry(element) {
         var uid = $(element).attr("uid");
-        // no spec selector here yet!
-        // $("[name^='ar\\."+sb_col+"\\.Specification']").val("");
-        // $("[name^='ar\\."+sb_col+"\\.Specification_uid']").val("");
         var min_element = $("[name='min\\."+uid+"\\:records']");
         var max_element = $("[name='max\\."+uid+"\\:records']");
         var error_element = $("[name='error\\."+uid+"\\:records']");
@@ -483,7 +483,11 @@ function AnalysisRequestAnalysesView() {
             }
         }
     }
-
+    /**
+    * This functions runs the logic needed after setting the checkbox of a
+    * service.
+    * @param {service_uid} the service uid checked.
+    */
     function check_service(service_uid){
         var new_element, element;
 
@@ -528,7 +532,11 @@ function AnalysisRequestAnalysesView() {
         }
 
     }
-
+    /**
+    * This functions runs the logic needed after unsetting the checkbox of a
+    * service.
+    * @param {service_uid} the service uid unchecked.
+    */
     function uncheck_service(service_uid){
         var new_element, element;
 
@@ -557,17 +565,32 @@ function AnalysisRequestAnalysesView() {
         }
 
     }
-
+    /**
+    * Given a selected service, this function selects the dependencies for
+    * the selected service.
+    * @param {String} dlg: The dialog to display (Not working!)
+    * @param {DOM object} element: The checkbox object.
+    * @param {Object} dep_services: A list of UIDs.
+    * @return {None} nothing.
+    */
     function add_Yes(dlg, element, dep_services){
+        var service_uid, dep_cb;
         for(var i = 0; i<dep_services.length; i++){
-            var service_uid = dep_services[i].Service_uid;
-            if(! $("#list_cb_"+service_uid).prop("checked") ){
-                check_service(service_uid);
-                $("#list_cb_"+service_uid).prop("checked",true);
+            service_uid = dep_services[i];
+            dep_cb = $("#list_cb_"+service_uid);
+            if(dep_cb.length > 0){
+                if(!$(dep_cb).prop("checked")){
+                    check_service(service_uid);
+                    $("#list_cb_"+service_uid).prop("checked",true);
+                }
+            }else{
+                expand_category_for_service(service_uid);
             }
         }
-        $(dlg).dialog("close");
-        $("#messagebox").remove();
+        if(dlg !== false){
+            $(dlg).dialog("close");
+            $("#messagebox").remove();
+        }
     }
 
     function add_No(dlg, element){
@@ -575,10 +598,18 @@ function AnalysisRequestAnalysesView() {
             uncheck_service($(element).attr("value"));
             $(element).prop("checked",false);
         }
-        $(dlg).dialog("close");
-        $("#messagebox").remove();
+        if(dlg !== false){
+            $(dlg).dialog("close");
+            $("#messagebox").remove();
+        };
     }
-
+    /**
+    * Once a checkbox has been selected, this functions finds out which are
+    * the dependencies and dependants related to it.
+    * @param {elements} The selected element, a checkbox.
+    * @param {auto_yes} A boolean. If 'true', the dependants and dependencies
+    * will be automatically selected/unselected.
+    */
     function calcdependencies(elements, auto_yes) {
         /*jshint validthis:true */
         auto_yes = auto_yes || false;
@@ -608,7 +639,7 @@ function AnalysisRequestAnalysesView() {
                 }
                 if (dep_services.length > 0) {
                     if (auto_yes) {
-                        add_Yes(this, element, dep_services);
+                        add_Yes(false, element, dep_services);
                     } else {
                         var html = "<div id='messagebox' style='display:none' title='" + _("Service dependencies") + "'>";
                         html = html + _("<p>${service} requires the following services to be selected:</p>"+
@@ -640,7 +671,7 @@ function AnalysisRequestAnalysesView() {
                 var Dependants = lims.AnalysisService.Dependants(service_uid);
                 for (i=0; i<Dependants.length; i++){
                     dep = Dependants[i];
-                    cb = $("#list_cb_" + dep.Service_uid);
+                    cb = $("#list_cb_" + dep);
                     if (cb.prop("checked")){
                         dep_titles.push(dep.Service);
                         dep_services.push(dep);
@@ -650,9 +681,9 @@ function AnalysisRequestAnalysesView() {
                     if (auto_yes) {
                         for(i=0; i<dep_services.length; i+=1) {
                             dep = dep_services[i];
-                            service_uid = dep.Service_uid;
-                            cb = $("#list_cb_" + dep.Service_uid);
-                            uncheck_service(dep.Service_uid);
+                            service_uid = dep;
+                            cb = $("#list_cb_" + service_uid);
+                            uncheck_service(service_uid);
                             $(cb).prop("checked", false);
                         }
                     } else {
@@ -669,10 +700,10 @@ function AnalysisRequestAnalysesView() {
                                 yes: function(){
                                     for(i=0; i<dep_services.length; i+=1) {
                                         dep = dep_services[i];
-                                        service_uid = dep.Service_uid;
-                                        cb = $("#list_cb_" + dep.Service_uid);
+                                        service_uid = dep;
+                                        cb = $("#list_cb_" + dep);
                                         $(cb).prop("checked", false);
-                                        uncheck_service(dep.Service_uid);
+                                        uncheck_service(dep);
                                     }
                                     $(this).dialog("close");
                                     $("#messagebox").remove();
@@ -690,5 +721,39 @@ function AnalysisRequestAnalysesView() {
                 }
             }
         }
+    }
+    /**
+    * Given an analysis service UID, this function expands the category for
+    * that service and selects it.
+    * @param {String} serv_uid: uid of the analysis service.
+    * @return {None} nothing.
+    */
+    function expand_category_for_service(serv_uid){
+        // Ajax getting the category from uid
+        var request_data = {
+            catalog_name: "uid_catalog",
+            UID: serv_uid,
+            include_methods: 'getCategoryTitle',
+        };
+        window.bika.lims.jsonapi_read(request_data, function(data) {
+            if (data.objects.length < 1 ) {
+               var msg =
+                   '[bika.lims.analysisrequest.add_by_col.js] No data returned ' +
+                   'while running "expand_category_for_service" for ' + serv_uid;
+               console.warn(msg);
+               window.bika.lims.warning(msg);
+            } else {
+                var cat_title = data.objects[0].getCategoryTitle;
+                // Expand category by uid and select the service
+                var element = $("th[cat='" + cat_title + "']");
+                //category_header_expand_handler(element, arnum, serv_uid);
+                window.bika.lims.BikaListingTableView
+                .category_header_expand_handler(element).done(
+                    function(){
+                    check_service(serv_uid);
+                    $("#list_cb_"+serv_uid).prop("checked",true);
+                });
+            }
+        });
     }
 }

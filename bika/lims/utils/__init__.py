@@ -41,7 +41,11 @@ allow_module('csv')
 def to_utf8(text):
     if text is None:
         text = ''
-    return safe_unicode(text).encode('utf-8')
+    unicode_obj = safe_unicode(text)
+    # If it receives a dictionary or list, it will not work
+    if isinstance(unicode_obj, unicode):
+        return unicode_obj.encode('utf-8')
+    return unicode_obj
 
 
 def to_unicode(text):
@@ -54,7 +58,13 @@ def t(i18n_msg):
     """Safely translate and convert to UTF8, any zope i18n msgid returned from
     a bikaMessageFactory _
     """
-    return to_utf8(translate(to_unicode(i18n_msg)))
+    text = to_unicode(i18n_msg)
+    try:
+        text = translate(text)
+    except UnicodeDecodeError:
+        # TODO: This is only a quick fix
+        logger.warn("{} couldn't be translated".format(text))
+    return to_utf8(text)
 
 # Wrapper for PortalTransport's sendmail - don't know why there sendmail
 # method is marked private
@@ -579,3 +589,23 @@ def measure_time(func_to_measure):
         print log
         return return_value
     return wrap
+
+
+def copy_field_values(src, dst, ignore_fieldnames=None, ignore_fieldtypes=None):
+    ignore_fields = ignore_fieldnames if ignore_fieldnames else []
+    ignore_types = ignore_fieldtypes if ignore_fieldtypes else []
+    if 'id' not in ignore_fields:
+        ignore_fields.append('id')
+
+    src_schema = src.Schema()
+    dst_schema = dst.Schema()
+
+    for field in src_schema.fields():
+        fieldname = field.getName()
+        if fieldname in ignore_fields \
+                or field.type in ignore_types \
+                or fieldname not in dst_schema:
+            continue
+        value = field.get(src)
+        if value:
+            dst_schema[fieldname].set(dst, value)

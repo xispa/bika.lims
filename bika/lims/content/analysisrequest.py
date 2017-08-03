@@ -10,7 +10,7 @@ import sys
 from AccessControl import ClassSecurityInfo
 from decimal import Decimal
 from operator import methodcaller
-
+from Products.Archetypes.utils import DisplayList
 from DateTime import DateTime
 from Products.ATExtensions.field import RecordsField
 from Products.Archetypes import atapi
@@ -517,17 +517,17 @@ schema = BikaSchema.copy() + Schema((
                 'sample_registered': {'view': 'invisible', 'edit': 'invisible'},
                 'to_be_sampled': {'view': 'invisible', 'edit': 'visible'},
                 'scheduled_sampling': {'view': 'invisible', 'edit': 'visible'},
-                'sampled': {'view': 'invisible', 'edit': 'invisible'},
-                'to_be_preserved': {'view': 'invisible', 'edit': 'invisible'},
-                'sample_due': {'view': 'invisible', 'edit': 'invisible'},
+                'sampled': {'view': 'visible', 'edit': 'invisible'},
+                'to_be_preserved': {'view': 'visible', 'edit': 'invisible'},
+                'sample_due': {'view': 'visible', 'edit': 'invisible'},
                 'sample_prep': {'view': 'visible', 'edit': 'invisible'},
-                'sample_received': {'view': 'invisible', 'edit': 'invisible'},
-                'attachment_due': {'view': 'invisible', 'edit': 'invisible'},
-                'to_be_verified': {'view': 'invisible', 'edit': 'invisible'},
-                'verified': {'view': 'invisible', 'edit': 'invisible'},
-                'published': {'view': 'invisible', 'edit': 'invisible'},
-                'invalid': {'view': 'invisible', 'edit': 'invisible'},
-                'rejected': {'view': 'invisible', 'edit': 'invisible'},
+                'sample_received': {'view': 'visible', 'edit': 'invisible'},
+                'attachment_due': {'view': 'visible', 'edit': 'invisible'},
+                'to_be_verified': {'view': 'visible', 'edit': 'invisible'},
+                'verified': {'view': 'visible', 'edit': 'invisible'},
+                'published': {'view': 'visible', 'edit': 'invisible'},
+                'invalid': {'view': 'visible', 'edit': 'invisible'},
+                'rejected': {'view': 'visible', 'edit': 'invisible'},
             },
             render_own_label=True,
         ),
@@ -1838,7 +1838,6 @@ class AnalysisRequest(BaseFolder):
             else:
                 return "0.00"
 
-    security.declareProtected(View, 'getResponsible')
 
     def _getAnalysesNum(self):
         """ Return the amount of analyses verified/total in the current AR """
@@ -1852,6 +1851,7 @@ class AnalysisRequest(BaseFolder):
                 total += 1
         return verified,total
 
+    @security.public
     def getResponsible(self):
         """ Return all manager info of responsible departments """
         managers = {}
@@ -1888,8 +1888,7 @@ class AnalysisRequest(BaseFolder):
 
         return mngr_info
 
-    security.declareProtected(View, 'getResponsible')
-
+    @security.public
     def getManagers(self):
         """ Return all managers of responsible departments """
         manager_ids = []
@@ -2448,7 +2447,7 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample and value:
             sample.setSamplingDate(value)
-            self.Schema()['DateSampled'].set(self, value)
+            self.Schema()['SamplingDate'].set(self, value)
         elif not sample:
             logger.warning(
                 "setSamplingDate has failed for Analysis Request %s because "
@@ -2806,7 +2805,7 @@ class AnalysisRequest(BaseFolder):
             .getField('ScheduledSamplingSampler').get(self)
 
     def getSamplers(self):
-        return getUsers(self, ['LabManager', 'Sampler'])
+        return getUsers(self, ['Sampler', ])
 
     def getPreparationWorkflows(self):
         """Return a list of sample preparation workflows.  These are identified

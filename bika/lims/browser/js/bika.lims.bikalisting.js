@@ -157,9 +157,19 @@ function BikaListingTableView() {
 	* The process requires an ajax call, so the function keeps checkboxes
 	* disabled until the allowed transitions for the associated object are set.
 	*/
-	function load_transitions() {
+	function load_transitions(blisting) {
 		"use strict";
-		if (loading_transitions) {
+		if (blisting == '' || typeof blisting === 'undefined') {
+            var blistings = $('table.bika-listing-table');
+            $(blistings).each(function(i) {
+                load_transitions($(this));
+            });
+            return;
+		}
+        var buttonspane = $(blisting).find('span.workflow_action_buttons');
+		if (loading_transitions || $(buttonspane).length == 0) {
+		    // If show_workflow_action_buttons param is set to False in the
+		    // view, or transitions are being loaded already, do nothing
 			return;
 		}
 		loading_transitions = true;
@@ -242,6 +252,12 @@ function BikaListingTableView() {
 	*/
 	function render_transition_buttons(blst) {
 		"use strict";
+        var buttonspane = $(blst).find('span.workflow_action_buttons');
+        if ($(buttonspane).length == 0) {
+		    // If show_workflow_action_buttons param is set to False in the
+		    // view, do nothing
+		    return;
+		}
 		var allowed_transitions = [];
 		var hidden_transitions = $(blst).find('input[type="hidden"][id="hide_transitions"]');
 		hidden_transitions = $(hidden_transitions).length == 1 ? $(hidden_transitions).val() : '';
@@ -279,7 +295,6 @@ function BikaListingTableView() {
 		}
 
 		// Generate the action buttons
-		var buttonspane = $(blst).find('span.workflow_action_buttons');
 		$(buttonspane).html('');
 		for (var i = 0; i < allowed_transitions.length; i++) {
 			var trans = allowed_transitions[i];
@@ -308,24 +323,28 @@ function BikaListingTableView() {
 				event.preventDefault()
 			}
 			// check the item's checkbox
-			var form_id = $(this).parents("form").attr("id")
-			var uid = $(this).attr("uid")
-			var checkbox = $("#" + form_id + "_cb_" + uid);
-            var blst = $(checkbox).parents("table.bika-listing-table");
-			$(checkbox).prop('checked', true);
-            render_transition_buttons(blst);
+			var uid = $(this).attr("uid");
+			var tr = $(this).parents('tr#folder-contents-item-'+uid);
+			var checkbox = tr.find('input[id$="_cb_' + uid +'"]');
+			if ($(checkbox).length == 1) {
+                var blst = $(checkbox).parents("table.bika-listing-table");
+                $(checkbox).prop('checked', true);
+                render_transition_buttons(blst);
+			}
 		})
 	}
 
 	function listing_string_select_changed() {
 		// always select checkbox when selectable listing item is changed
 		$(".listing_select_entry").live("change", function () {
-			var form_id = $(this).parents("form").attr("id")
-			var uid = $(this).attr("uid")
-			var checkbox = $("#" + form_id + "_cb_" + uid);
-            var blst = $(checkbox).parents("table.bika-listing-table");
-			$(checkbox).prop('checked', true);
-            render_transition_buttons(blst);
+			var uid = $(this).attr("uid");
+			var tr = $(this).parents('tr#folder-contents-item-'+uid);
+			var checkbox = tr.find('input[id$="_cb_' + uid +'"]');
+			if ($(checkbox).length == 1) {
+			    var blst = $(checkbox).parents("table.bika-listing-table");
+			    $(checkbox).prop("checked", true);
+			    render_transition_buttons(blst);
+			}
 		})
 	}
 
@@ -346,7 +365,7 @@ function BikaListingTableView() {
 		// expand/collapse categorised rows
 		$(".bika-listing-table th.collapsed").live("click", function () {
 			if (!$(this).hasClass("ignore_bikalisting_default_handler")){
-				category_header_expand_handler(this)
+				that.category_header_expand_handler(this)
 			}
 		});
         $(".bika-listing-table th.expanded").live("click", function () {
@@ -365,7 +384,7 @@ function BikaListingTableView() {
         })
     }
 
-	function category_header_expand_handler(element) {
+	that.category_header_expand_handler = function (element) {
 		// element is the category header TH.
 		// duplicated in bika.lims.analysisrequest.add_by_col.js
 		var def = $.Deferred()

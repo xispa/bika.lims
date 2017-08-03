@@ -48,6 +48,7 @@ class AnalysisServicesView(ASV):
 
         self.contentFilter['getPointOfCapture'] = poc
         self.contentFilter['inactive_state'] = 'active'
+        self.show_workflow_action_buttons = False
 
         if category:
             self.contentFilter['getCategoryTitle'] = category
@@ -140,7 +141,6 @@ class AnalysisServicesView(ASV):
         # run multiple times.  This is necessary so that AR Add can check
         # the item count before choosing to render the table at all.
         if not self.ar_add_items:
-            bs = self.context.bika_setup
             # The parent folder can be a client or a batch, but we need the
             # client.  It is possible that this will be None!  This happens
             # when the AR is inside a batch, and the batch has no Client set.
@@ -148,12 +148,14 @@ class AnalysisServicesView(ASV):
             if not self.context.aq_parent.portal_type == "AnalysisRequestsFolder":
                 client = self.context.aq_parent if self.context.aq_parent.portal_type == 'Client'\
                     else self.context.aq_parent.getClient()
+            # TODO: Forcing the sort_on value. We should find a better way,
+            # this is just a quick fix.
+            self.contentFilter['sort_on'] = 'title'
             items = super(AnalysisServicesView, self).folderitems()
             for x, item in enumerate(items):
                 if 'obj' not in items[x]:
                     continue
                 obj = items[x]['obj']
-                kw = obj.getKeyword()
                 for arnum in range(self.ar_count):
                     key = 'ar.%s' % arnum
                     # If AR Specification fields are enabled, these should
@@ -350,7 +352,9 @@ class SecondaryARSampleInfo(BrowserView):
                     ret.append([fieldname + '_uid', fieldvalue.UID()])
                     fieldvalue = fieldvalue.Title()
                 if hasattr(fieldvalue, 'year'):
-                    fieldvalue = fieldvalue.strftime(self.date_format_short)
+                    # TODO Parsing with hardcoded date format is not good. Replace it with global format.
+                    # We do it now because of parsing format in line 433.
+                    fieldvalue = fieldvalue.strftime("%Y-%m-%d")
             else:
                 fieldvalue = ''
             ret.append([fieldname, fieldvalue])
@@ -421,6 +425,14 @@ class ajaxAnalysisRequestSubmit():
                     required.remove('SamplingDate')
                 if 'SampleType' in required:
                     required.remove('SampleType')
+            # If this is not a Secondary AR, make sure that Sample Type UID is valid. This shouldn't
+            # happen, but making sure just in case.
+            else:
+                st_uid = state.get('SampleType', None)
+                if not st_uid or not bsc(portal_type='SampleType', UID=st_uid):
+                    msg = t(_("Not a valid Sample Type."))
+                    ajax_form_error(self.errors, arnum=arnum, message=msg)
+                    continue
             # checking if sampling date is not future
             if state.get('SamplingDate', ''):
                 samplingdate = state.get('SamplingDate', '')
