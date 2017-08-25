@@ -1,4 +1,8 @@
 from openpyxl.workbook import Workbook
+from openpyxl.cell import get_column_letter
+from Products.ATContentTypes.interfaces.interfaces import IATContentType
+from openpyxl.style import NumberFormat, Border, Color, Font
+from openpyxl.writer.styles import StyleWriter
 from openpyxl.writer.excel import save_workbook
 from Products.CMFCore.utils import getToolByName
 from bika.lims import bikaMessageFactory as _
@@ -6,11 +10,13 @@ from bika.lims import logger
 from bika.lims.utils import to_utf8
 from bika.lims.utils import getFromString
 from DateTime import DateTime
+from Products.CMFPlone.utils import safe_unicode
 import tempfile
 
 CATALOG = 'catalog'
 EXCLUDE = 'exclude'
 INCLUDE = 'include'
+SHEET_NAME = 'sheet-name'
 QUERY = 'query'
 
 DEFAULT_FIELDS_TO_OMIT = ['id', 'constrainTypesMode', 'allowDiscussion',
@@ -22,12 +28,27 @@ DEFAULT_PORTAL_TYPES = {
 
     'Client':
         {CATALOG: 'portal_catalog',
-         EXCLUDE: ['title', 'description'],},
+         SHEET_NAME: 'Clients',
+         EXCLUDE: ['title', 'description',]},
 
     'Contact':
         {CATALOG: 'portal_catalog',
-         EXCLUDE: ['title', 'description'],
-         INCLUDE: ['aq_parent.Title']},
+         SHEET_NAME: 'Client Contacts',
+         EXCLUDE: ['title', 'description', 'Fullname'],
+         INCLUDE: ['aq_parent.Title:Client_title']},
+
+    'AnalysisCategory':
+        {CATALOG: 'bika_setup_catalog',
+         SHEET_NAME: 'Analysis Categories',
+         EXCLUDE: ['SortKey', 'DepartmentTitle'],
+         INCLUDE: []},
+
+    'AnalysisService':
+        {CATALOG: 'bika_setup_catalog',
+         SHEET_NAME: 'Analysis Services',
+         EXCLUDE: ['SortKey', 'Category', 'Department'],
+         INCLUDE: ['getCategory.Title:AnalysisCategory_title',
+                   'getDepartment.Title:Department_title']}
 }
 
 class SetupDataExporter:
@@ -51,6 +72,11 @@ class SetupDataExporter:
             self._to_worksheet(portal_type, catalog, query, exclude, include)
 
         if self.workbook:
+            # Apply styles
+            w = StyleWriter(self.workbook)
+            w._write_fonts()
+            w._write_fills()
+
             # Write file
             outfile = tempfile.mktemp(suffix=".xlsx")
             if out_file_path:
@@ -69,7 +95,7 @@ class SetupDataExporter:
         ws = self._get_worksheet(portal_type)
         is_empty = True
         tool = getToolByName(self.context, catalog)
-        brains = tool(portal_type=portal_type, sort_on='created',
+        brains = tool(portal_type=portal_type, sort_on='sortable_title',
                       sort_order='ascending')
         for brain in brains:
             obj = brain.getObject()
@@ -82,13 +108,28 @@ class SetupDataExporter:
                 is_empty = False
             self._append_row(ws, obj, review_state)
 
+        # Adjust the width of the columns
+        dims = {}
+        for row in ws.rows:
+            for cell in row:
+                if cell.value:
+                    if type(cell.value) is not unicode:
+                        continue
+                    width_cell = len(cell.value) * 0.8
+                    dims[cell.column] = max(
+                        (dims.get(cell.column, 0), width_cell))
+        for col, value in dims.items():
+            ws.column_dimensions[col].width = value
+
 
     def _get_worksheet(self, portal_type):
         if not self.workbook:
             self.workbook = Workbook()
-        ws = self.workbook.get_sheet_by_name(portal_type)
+        sheet_name = DEFAULT_PORTAL_TYPES.get(portal_type, {})
+        sheet_name = sheet_name.get(SHEET_NAME, portal_type)
+        ws = self.workbook.get_sheet_by_name(sheet_name)
         if not ws:
-            ws = self.workbook.create_sheet(title=portal_type)
+            ws = self.workbook.create_sheet(title=sheet_name)
         return ws
 
 
@@ -100,9 +141,17 @@ class SetupDataExporter:
         schema = obj.Schema()
         cols = []
         heads = []
+        wcols = []
         for field in include_fields:
-            cols.append(field)
-            heads.append(field)
+            tokens = field.split(':')
+            if len(tokens) > 1:
+                cols.append(tokens[1])
+                heads.append(_(tokens[1]))
+                wcols.append(tokens[0])
+            else:
+                cols.append(field)
+                heads.append(_(field))
+                wcols.append(field)
 
         for field in schema.fields():
             field_name = field.getName()
@@ -120,18 +169,35 @@ class SetupDataExporter:
                 for subfield in field.subfields:
                     subfield_name = '%s_%s' % (field_name, subfield)
                     cols.append(subfield_name)
-                    heads.append(subfield_name)
+                    wcols.append(subfield_name)
+                    heads.append(_(subfield_name))
                 continue
 
-            # Need to check for types
             cols.append(field_name)
             heads.append(_(field_name))
+            wcols.append(field_name)
+
         cols.append('review_state')
-        heads.append('review_state')
+        heads.append(_('review_state'))
+        wcols.append('review_state')
         ws.append(cols)
-        ws.append([obj.portal_type])
+        ws.append([ws.title])
+        ws.cell('A2').style.font.size = 12
+        ws.cell('A2').style.font.name='Arial'
+        ws.cell('A2').style.font.bold = True
+        ws.cell('A2').style.alignment.shrink_to_fit = True
         ws.append(heads)
-        self.ws_cols[ws.title] = cols
+        for idx in range(0, len(heads)):
+            letter = get_column_letter(idx + 1)
+            col_coord = '%s3' % letter
+            ws.cell(col_coord).style.font.bold = True
+            ws.cell(col_coord).style.font.name='Arial'
+            ws.cell(col_coord).style.alignment.shrink_to_fit = True
+            col_coord = '%s1' % letter
+            ws.cell(col_coord).style.font.size=8
+            ws.cell(col_coord).style.font.name='Arial'
+            ws.cell(col_coord).style.alignment.shrink_to_fit = True
+        self.ws_cols[ws.title] = wcols
 
 
     def _append_row(self, ws, obj, review_state):
@@ -141,8 +207,6 @@ class SetupDataExporter:
             if col == 'review_state':
                 row.append(review_state)
                 continue
-            if col == 'aq_parent.Title()':
-                import pdb;pdb.set_trace()
             field = obj.getField(col, '')
             if not field:
                 # Is an include_field?
@@ -168,10 +232,22 @@ class SetupDataExporter:
                 # Convert to YYYY-MM-dd hh:mm:ss
                 value = value.asdatetime()
                 value = value.strftime('%Y-%m-%d %H:%M:%S')
+            elif field and field.type == 'reference' and not field.multiValued:
+                value = to_utf8(value.Title())
+            elif type(value) is IATContentType:
+                value = to_utf8(value.Title())
             elif not value:
                 value = ''
             else:
                 value = to_utf8(str(value))
             row.append(value)
         ws.append(row)
+        row_idx = len(ws.row_dimensions)
+        for idx in range(0, len(row)):
+            letter = get_column_letter(idx + 1)
+            col_coord = '%s%s' % (letter, row_idx)
+            cell = ws.cell(col_coord)
+            cell.style.font.size=10
+            cell.style.font.name='Arial'
+            cell.style.alignment.shrink_to_fit = True
 
