@@ -48,6 +48,7 @@ class AnalysisServicesView(ASV):
 
         self.contentFilter['getPointOfCapture'] = poc
         self.contentFilter['inactive_state'] = 'active'
+        self.show_workflow_action_buttons = False
 
         if category:
             self.contentFilter['getCategoryTitle'] = category
@@ -140,7 +141,6 @@ class AnalysisServicesView(ASV):
         # run multiple times.  This is necessary so that AR Add can check
         # the item count before choosing to render the table at all.
         if not self.ar_add_items:
-            bs = self.context.bika_setup
             # The parent folder can be a client or a batch, but we need the
             # client.  It is possible that this will be None!  This happens
             # when the AR is inside a batch, and the batch has no Client set.
@@ -148,12 +148,14 @@ class AnalysisServicesView(ASV):
             if not self.context.aq_parent.portal_type == "AnalysisRequestsFolder":
                 client = self.context.aq_parent if self.context.aq_parent.portal_type == 'Client'\
                     else self.context.aq_parent.getClient()
+            # TODO: Forcing the sort_on value. We should find a better way,
+            # this is just a quick fix.
+            self.contentFilter['sort_on'] = 'title'
             items = super(AnalysisServicesView, self).folderitems()
             for x, item in enumerate(items):
                 if 'obj' not in items[x]:
                     continue
                 obj = items[x]['obj']
-                kw = obj.getKeyword()
                 for arnum in range(self.ar_count):
                     key = 'ar.%s' % arnum
                     # If AR Specification fields are enabled, these should
@@ -350,7 +352,9 @@ class SecondaryARSampleInfo(BrowserView):
                     ret.append([fieldname + '_uid', fieldvalue.UID()])
                     fieldvalue = fieldvalue.Title()
                 if hasattr(fieldvalue, 'year'):
-                    fieldvalue = fieldvalue.strftime(self.date_format_short)
+                    # TODO Parsing with hardcoded date format is not good. Replace it with global format.
+                    # We do it now because of parsing format in line 433.
+                    fieldvalue = fieldvalue.strftime("%Y-%m-%d")
             else:
                 fieldvalue = ''
             ret.append([fieldname, fieldvalue])
@@ -415,30 +419,60 @@ class ajaxAnalysisRequestSubmit():
         # in valid_states, all ars that pass validation will be stored
         valid_states = {}
         for arnum, state in nonblank_states.items():
+            secondary = False
             # Secondary ARs are a special case, these fields are not required
             if state.get('Sample', ''):
                 if 'SamplingDate' in required:
                     required.remove('SamplingDate')
                 if 'SampleType' in required:
                     required.remove('SampleType')
+                secondary = True
+            # If this is not a Secondary AR, make sure that Sample Type UID is valid. This shouldn't
+            # happen, but making sure just in case.
+            else:
+                st_uid = state.get('SampleType', None)
+                if not st_uid or not bsc(portal_type='SampleType', UID=st_uid):
+                    msg = t(_("Not a valid Sample Type."))
+                    ajax_form_error(self.errors, arnum=arnum, message=msg)
+                    continue
             # checking if sampling date is not future
             if state.get('SamplingDate', ''):
                 samplingdate = state.get('SamplingDate', '')
                 try:
                     samp_date = datetime.datetime.strptime(
-                        samplingdate, "%Y-%m-%d %H:%M")
+                        samplingdate.strip(), "%Y-%m-%d %H:%M")
                 except ValueError:
                     print traceback.format_exc()
                     msg =\
                         "Bad time formatting: Getting '{}' but expecting an"\
                         " string with '%Y-%m-%d %H:%M' format."\
                         .format(samplingdate)
-                    logger.error(msg)
                     ajax_form_error(self.errors, arnum=arnum, message=msg)
                     continue
-                now = datetime.datetime.now()
-                if now < samp_date:
-                    msg = t(_("Sampling Date can't be future"))
+                today = date.today()
+                if not secondary and today > samp_date.date():
+                    msg = t(_("Expected Sampling Date can't be in the past"))
+                    ajax_form_error(self.errors, arnum=arnum, message=msg)
+                    continue
+            # If Sampling Date is not set, we are checking whether it is the user left it empty,
+            # or it is because we have Sampling Workflow Disabled
+            elif not self.context.bika_setup.getSamplingWorkflowEnabled():
+                # Date Sampled is required in this case
+                date_sampled = state.get('DateSampled', '')
+                if not date_sampled:
+                    msg = \
+                        "Date Sampled Field is required."
+                    ajax_form_error(self.errors, arnum=arnum, message=msg)
+                    continue
+                try:
+                    date_sampled = datetime.datetime.strptime(
+                        date_sampled.strip(), "%Y-%m-%d %H:%M")
+                except ValueError:
+                    print traceback.format_exc()
+                    msg =\
+                        "Bad time formatting: Getting '{}' but expecting an"\
+                        " string with '%Y-%m-%d %H:%M' format."\
+                        .format(date_sampled)
                     ajax_form_error(self.errors, arnum=arnum, message=msg)
                     continue
             # fields flagged as 'hidden' are not considered required because

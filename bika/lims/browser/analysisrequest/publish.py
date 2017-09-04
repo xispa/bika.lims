@@ -668,6 +668,14 @@ class AnalysisRequestPublishView(BrowserView):
                 out = "%s<br/>%s'%s':''" % (out, padding, str(k))
         return out
 
+    def currentDate(self):
+        """
+        This method returns the current time. It is useful if you want to
+        get the current time in a report.
+        :return: DateTime()
+        """
+        return DateTime()
+
 
 class AnalysisRequestDigester:
     """Read AR data which could be useful during publication, into a data
@@ -710,13 +718,30 @@ class AnalysisRequestDigester:
         self.request = ar.REQUEST
 
         # if AR was previously digested, use existing data (if exists)
-        if not overwrite:
+        verified = wasTransitionPerformed(ar, 'verify')
+        if not overwrite and verified:
             # Prevent any error related with digest
-            data = ar.getDigest() if hasattr(ar, 'getDigest') else ''
+            data = ar.getDigest() if hasattr(ar, 'getDigest') else {}
             if data:
-                # Seems that sometimes the 'obj' is wrong in the saved data.
-                data['obj'] = ar
-                return data
+                # Check if the department managers have changed since
+                # verification:
+                saved_managers = data.get('managers', {})
+                saved_managers_ids = set(saved_managers.get('ids', []))
+                current_managers = self.context.getManagers()
+                current_managers_ids = set([man.getId() for man in
+                                            current_managers])
+                # The symmetric difference of two sets A and B is the set of
+                # elements which are in either of the sets A or B but not
+                # in both.
+                are_different = saved_managers_ids.symmetric_difference(
+                    current_managers_ids)
+                if len(are_different) == 0:
+                    # Seems that sometimes the 'obj' is wrong in the saved
+                    # data.
+                    data['obj'] = ar
+                    # Always set results interpretation
+                    self._set_results_interpretation(ar, data)
+                    return data
 
         logger.info("=========== creating new data for %s" % ar)
 
@@ -724,6 +749,7 @@ class AnalysisRequestDigester:
         data = self._ar_data(ar)
         if hasattr(ar, 'setDigest'):
             ar.setDigest(data)
+        logger.info("=========== new data for %s created." % ar)
         return data
 
     def _schema_dict(self, instance, skip_fields=None, recurse=True):
@@ -892,7 +918,7 @@ class AnalysisRequestDigester:
                 'prepublish': False,
                 'child_analysisrequest': None,
                 'parent_analysisrequest': None,
-                'resultsinterpretation': ar.getResultsInterpretation()}
+                }
 
         # Sub-objects
         excludearuids.append(ar.UID())
@@ -981,13 +1007,7 @@ class AnalysisRequestDigester:
         data['laboratory'] = self._lab_data()
 
         # results interpretation
-        ri = {}
-        if ar.getResultsInterpretationByDepartment(None):
-            ri[''] = ar.getResultsInterpretationByDepartment(None)
-        depts = ar.getDepartments()
-        for dept in depts:
-            ri[dept.Title()] = ar.getResultsInterpretationByDepartment(dept)
-        data['resultsinterpretationdepts'] = ri
+        data = self._set_results_interpretation(ar, data)
 
         return data
 
@@ -1044,24 +1064,33 @@ class AnalysisRequestDigester:
             memail = member.getProperty('email')
             mhomepage = member.getProperty('home_page')
             pc = getToolByName(self.context, 'portal_catalog')
-            c = pc(portal_type='Contact', getUsername=member.id)
-            c = c[0].getObject() if c else None
-            cfullname = c.getFullname() if c else None
-            cemail = c.getEmailAddress() if c else None
+            contact = pc(portal_type='LabContact', getUsername=member.getId())
+            # Only one LabContact should be found
+            if len(contact) > 1:
+                logger.warn(
+                    "Incorrect number of user with the same "
+                    "memberID. '{0}' users found with {1} as ID"
+                    .format(len(contact), member.id))
+            contact = contact[0].getObject() if contact else None
+            cfullname = contact.getFullname() if contact else None
+            cemail = contact.getEmailAddress() if contact else None
+            physical_address = self._format_address(
+                contact.getPhysicalAddress()) if contact else ''
+            postal_address =\
+                self._format_address(contact.getPostalAddress())\
+                if contact else ''
             data = {'id': member.id,
                     'fullname': to_utf8(cfullname) if cfullname else to_utf8(
                         mfullname),
                     'email': cemail if cemail else memail,
-                    'business_phone': c.getBusinessPhone() if c else '',
-                    'business_fax': c.getBusinessFax() if c else '',
-                    'home_phone': c.getHomePhone() if c else '',
-                    'mobile_phone': c.getMobilePhone() if c else '',
-                    'job_title': to_utf8(c.getJobTitle()) if c else '',
-                    'department': to_utf8(c.getDepartment()) if c else '',
-                    'physical_address': to_utf8(
-                        c.getPhysicalAddress()) if c else '',
-                    'postal_address': to_utf8(
-                        c.getPostalAddress()) if c else '',
+                    'business_phone': contact.getBusinessPhone() if contact else '',
+                    'business_fax': contact.getBusinessFax() if contact else '',
+                    'home_phone': contact.getHomePhone() if contact else '',
+                    'mobile_phone': contact.getMobilePhone() if contact else '',
+                    'job_title': to_utf8(contact.getJobTitle()) if contact else '',
+                    'department': to_utf8(contact.getDepartment()) if contact else '',
+                    'physical_address': physical_address,
+                    'postal_address': postal_address,
                     'home_page': to_utf8(mhomepage)}
         return data
 
@@ -1160,11 +1189,8 @@ class AnalysisRequestDigester:
                 full_objects=True, review_state=analysis_states):
 
             # Omit hidden analyses?
-            if not showhidden:
-                asets = ar.getAnalysisServiceSettings(an.getServiceUID())
-                if asets.get('hidden'):
-                    # Hide analysis
-                    continue
+            if not showhidden and an.getHidden():
+                continue
 
             # Build the analysis-specific dict
             andict = self._analysis_data(an, dm)
@@ -1350,6 +1376,25 @@ class AnalysisRequestDigester:
             managers['dict'][mngr]['departments'] = final_depts
 
         return managers
+
+    def _set_results_interpretation(self, ar, data):
+        """
+        This function updates the 'results interpretation' data.
+        :param ar: an AnalysisRequest object.
+        :param data: The data dictionary.
+        :return: The 'data' dictionary with the updated values.
+        """
+        # General interpretation
+        data['resultsinterpretation'] = ar.getResultsInterpretation()
+        # Interpretations by departments
+        ri = {}
+        if ar.getResultsInterpretationByDepartment(None):
+            ri[''] = ar.getResultsInterpretationByDepartment(None)
+        depts = ar.getDepartments()
+        for dept in depts:
+            ri[dept.Title()] = ar.getResultsInterpretationByDepartment(dept)
+        data['resultsinterpretationdepts'] = ri
+        return data
 
     def isHiddenAnalysesVisible(self):
         """Returns true if hidden analyses are visible

@@ -34,7 +34,6 @@ class AnalysisRequestAnalysesView(BikaListingView):
         super(AnalysisRequestAnalysesView, self).__init__(context, request)
         self.catalog = "bika_setup_catalog"
         self.contentFilter = {'portal_type': 'AnalysisService',
-                              'sort_on': 'sortable_title',
                               'inactive_state': 'active', }
         self.context_actions = {}
         self.icon = self.portal_url + "/++resource++bika.lims.images/analysisrequest_big.png"
@@ -53,10 +52,9 @@ class AnalysisRequestAnalysesView(BikaListingView):
             self.expand_all_categories = False
             self.ajax_categories = True
             self.category_index = 'getCategoryTitle'
-
         self.columns = {
             'Title': {'title': _('Service'),
-                      'index': 'getId',
+                      'index': 'title',
                       'sortable': False, },
             'Hidden': {'title': _('Hidden'),
                        'sortable': False,
@@ -64,7 +62,8 @@ class AnalysisRequestAnalysesView(BikaListingView):
             'Price': {'title': _('Price'),
                       'sortable': False, },
             'Partition': {'title': _('Partition'),
-                          'sortable': False, },
+                          'sortable': False,
+                          'type': 'choices'},
             'min': {'title': _('Min')},
             'max': {'title': _('Max')},
             'error': {'title': _('Permitted Error %')},
@@ -171,13 +170,9 @@ class AnalysisRequestAnalysesView(BikaListingView):
         self.expand_all_categories = False
 
         wf = getToolByName(self.context, 'portal_workflow')
-        mtool = getToolByName(self.context, 'portal_membership')
-
-        self.allow_edit = mtool.checkPermission('Modify portal content',
-                                                self.context)
-
+        self.contentFilter['sort_on'] = 'title'
+        self.contentFilter['sort_order'] = 'ascending'
         items = BikaListingView.folderitems(self)
-        analyses = self.context.getAnalyses(full_objects=True)
 
         parts = self.context.getSample().objectValues('SamplePartition')
         partitions = [{'ResultValue': o.Title(),
@@ -280,7 +275,7 @@ class AnalysisRequestAnalysesView(BikaListingView):
 
             # Display analyses for this Analysis Service in results?
             ser = self.context.getAnalysisServiceSettings(obj.UID())
-            items[x]['allow_edit'] = ['Hidden', ]
+            items[x]['allow_edit'].append('Hidden')
             items[x]['Hidden'] = ser.get('hidden', obj.getHidden())
 
         self.categories.sort()

@@ -17,6 +17,7 @@ from bika.lims import bikaMessageFactory as _, logger
 from bika.lims.interfaces import IAnalysisService
 from bika.lims.utils import changeWorkflowState
 from bika.lims.utils import formatDecimalMark
+from bika.lims.utils import to_unicode
 
 
 def duplicateAnalysis(analysis):
@@ -49,7 +50,7 @@ def copy_analysis_field_values(source, analysis, **kwargs):
         'creators', 'effectiveDate', 'expirationDate', 'language', 'rights',
         'creation_date', 'modification_date', 'IsReflexAnalysis',
         'OriginalReflexedAnalysis', 'ReflexAnalysisOf', 'ReflexRuleAction',
-        'ReflexRuleLocalID', 'ReflexRuleActionsTriggered']
+        'ReflexRuleLocalID', 'ReflexRuleActionsTriggered', 'Hidden']
     for field in src_schema.fields():
         fieldname = field.getName()
         if fieldname in IGNORE_FIELDNAMES and fieldname not in kwargs:
@@ -112,7 +113,7 @@ def get_significant_digits(numeric_value):
     """
     try:
         numeric_value = float(numeric_value)
-    except ValueError:
+    except (TypeError, ValueError):
         return None
     if numeric_value == 0:
         return 0
@@ -449,10 +450,10 @@ def get_method_instrument_constraints(context, uids):
             tprem = ''.join(premises)
 
             fiuid = v_instrs[0] if v_instrs else ''
-            instrtitle = a_dinstrum.Title() if a_dinstrum else ''
-            iinstrs = ', '.join([i.Title() for i in instrs
+            instrtitle = to_unicode(a_dinstrum.Title()) if a_dinstrum else ''
+            iinstrs = ', '.join([to_unicode(i.Title()) for i in instrs
                                  if i.UID() not in v_instrs])
-            dmeth = method.Title() if method else ''
+            dmeth = to_unicode(method.Title()) if method else ''
             m1 = _("Invalid instruments are not displayed: %s") % iinstrs
             m2 = _("Default instrument %s is not valid") % instrtitle
             m3 = _("No valid instruments available: %s ") % iinstrs

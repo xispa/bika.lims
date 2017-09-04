@@ -11,6 +11,7 @@ from bika.lims.idserver import renameAfterCreation
 from bika.lims.permissions import *
 from bika.lims.utils import changeWorkflowState
 from bika.lims.utils import encode_header
+from bika.lims.utils import copy_field_values
 from bika.lims.utils import isActive
 from bika.lims.utils import tmpID
 from bika.lims.utils import to_utf8
@@ -25,6 +26,8 @@ from Products.Archetypes.event import ObjectInitializedEvent
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.utils import safe_unicode, _createObjectByType
 from bika.lims import interfaces
+from bika.lims.workflow import getCurrentState
+from bika.lims.workflow import wasTransitionPerformed
 
 import json
 import plone
@@ -143,7 +146,7 @@ class AnalysisRequestWorkflowAction(WorkflowAction):
         specs = {}
         if form.get("min", None):
             for service_uid in Analyses:
-                service = bsc(UID=service_uid)[0].getObject()
+                service = objects[service_uid]
                 keyword = service.getKeyword()
                 specs[service_uid] = {
                     "min": form["min"][0][service_uid],
@@ -154,7 +157,7 @@ class AnalysisRequestWorkflowAction(WorkflowAction):
                 }
         else:
             for service_uid in Analyses:
-                service = bsc(UID=service_uid)[0].getObject()
+                service = objects[service_uid]
                 keyword = service.getKeyword()
                 specs[service_uid] = {"min": "", "max": "", "error": "",
                                       "keyword": keyword, "uid": service_uid}
@@ -170,18 +173,20 @@ class AnalysisRequestWorkflowAction(WorkflowAction):
                 analysis = ar[service.getKeyword()]
                 analysis.setSamplePartition(part)
                 analysis.reindexObject()
+                partans = part.getAnalyses()
+                partans.append(analysis)
+                part.setAnalyses(partans)
+                part.reindexObject()
 
         if new:
+            ar_state = getCurrentState(ar)
+            if wasTransitionPerformed(ar, 'to_be_verified'):
+                # Apply to AR only; we don't want this transition to cascade.
+                ar.REQUEST['workflow_skiplist'].append("retract all analyses")
+                workflow.doActionFor(ar, 'retract')
+                ar.REQUEST['workflow_skiplist'].remove("retract all analyses")
+                ar_state = getCurrentState(ar)
             for analysis in new:
-                # if the AR has progressed past sample_received, we need to bring it back.
-                ar_state = workflow.getInfoFor(ar, 'review_state')
-                if ar_state in ('attachment_due', 'to_be_verified'):
-                    # Apply to AR only; we don't want this transition to cascade.
-                    ar.REQUEST['workflow_skiplist'].append("retract all analyses")
-                    workflow.doActionFor(ar, 'retract')
-                    ar.REQUEST['workflow_skiplist'].remove("retract all analyses")
-                    ar_state = workflow.getInfoFor(ar, 'review_state')
-                # Then we need to forward new analyses state
                 changeWorkflowState(analysis, 'bika_analysis_workflow', ar_state)
 
         message = PMF("Changes saved.")
@@ -595,33 +600,12 @@ class AnalysisRequestWorkflowAction(WorkflowAction):
 
     def cloneAR(self, ar):
         newar = _createObjectByType("AnalysisRequest", ar.aq_parent, tmpID())
-        newar.title = ar.title
-        newar.description = ar.description
-        newar.setContact(ar.getContact())
-        newar.setCCContact(ar.getCCContact())
-        newar.setCCEmails(ar.getCCEmails())
-        newar.setBatch(ar.getBatch())
-        newar.setTemplate(ar.getTemplate())
-        newar.setProfile(ar.getProfile())
-        newar.setSamplingDate(ar.getSamplingDate())
-        newar.setSampleType(ar.getSampleType())
-        newar.setSamplePoint(ar.getSamplePoint())
-        newar.setStorageLocation(ar.getStorageLocation())
-        newar.setSamplingDeviation(ar.getSamplingDeviation())
-        newar.setSampleCondition(ar.getSampleCondition())
         newar.setSample(ar.getSample())
-        newar.setClientOrderNumber(ar.getClientOrderNumber())
-        newar.setClientReference(ar.getClientReference())
-        newar.setClientSampleID(ar.getClientSampleID())
-        newar.setDefaultContainerType(ar.getDefaultContainerType())
-        newar.setAdHoc(ar.getAdHoc())
-        newar.setComposite(ar.getComposite())
-        newar.setReportDryMatter(ar.getReportDryMatter())
-        newar.setInvoiceExclude(ar.getInvoiceExclude())
-        newar.setAttachment(ar.getAttachment())
-        newar.setInvoice(ar.getInvoice())
-        newar.setDateReceived(ar.getDateReceived())
-        newar.setMemberDiscount(ar.getMemberDiscount())
+        ignore_fieldnames = ['Analyses', 'DatePublished', 'DatePublishedViewer',
+                             'ParentAnalysisRequest', 'ChildAnaysisRequest',
+                             'Digest', 'Sample']
+        copy_field_values(ar, newar, ignore_fieldnames=ignore_fieldnames)
+
         # Set the results for each AR analysis
         ans = ar.getAnalyses(full_objects=True)
         # If a whole AR is retracted and contains retracted Analyses, these
@@ -630,26 +614,19 @@ class AnalysisRequestWorkflowAction(WorkflowAction):
         analyses = [x for x in ans
                 if workflow.getInfoFor(x, "review_state") not in ("retracted")]
         for an in analyses:
+            if hasattr(an, 'IsReflexAnalysis') and an.IsReflexAnalysis:
+                # We don't want reflex analyses to be copied
+                continue
             try:
                 nan = _createObjectByType("Analysis", newar, an.getKeyword())
             except Exception as e:
                 from bika.lims import logger
                 logger.warn('Cannot create analysis %s inside %s (%s)'%
-                            an.getService().Title(), newar, e)
+                            an.getAnalysisService().Title(), newar, e)
                 continue
-            nan.setService(an.getService())
-            nan.setCalculation(an.getCalculation())
-            nan.setInterimFields(an.getInterimFields())
-            nan.setResult(an.getResult())
-            nan.setResultDM(an.getResultDM())
-            nan.setRetested = False,
-            nan.setMaxTimeAllowed(an.getMaxTimeAllowed())
-            nan.setDueDate(an.getDueDate())
-            nan.setDuration(an.getDuration())
-            nan.setReportDryMatter(an.getReportDryMatter())
-            nan.setAnalyst(an.getAnalyst())
-            nan.setInstrument(an.getInstrument())
-            nan.setSamplePartition(an.getSamplePartition())
+            # Make a copy
+            ignore_fieldnames = ['Verificators', 'DataAnalysisPublished']
+            copy_field_values(an, nan, ignore_fieldnames=ignore_fieldnames)
             nan.unmarkCreationFlag()
             zope.event.notify(ObjectInitializedEvent(nan))
             changeWorkflowState(nan, 'bika_analysis_workflow',

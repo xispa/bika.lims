@@ -10,7 +10,7 @@ import sys
 from AccessControl import ClassSecurityInfo
 from decimal import Decimal
 from operator import methodcaller
-
+from Products.Archetypes.utils import DisplayList
 from DateTime import DateTime
 from Products.ATExtensions.field import RecordsField
 from Products.Archetypes import atapi
@@ -31,9 +31,12 @@ from bika.lims.browser.fields import DateTimeField
 from bika.lims.browser.widgets import DateTimeWidget, DecimalWidget
 from bika.lims.browser.widgets import ReferenceWidget
 from bika.lims.browser.widgets import RejectionWidget
+from bika.lims.browser.widgets import PrioritySelectionWidget
 from bika.lims.browser.widgets import SelectionWidget
 from bika.lims.browser.widgets import SelectionWidget as BikaSelectionWidget
+from bika.lims.catalog import CATALOG_ANALYSIS_LISTING
 from bika.lims.config import PROJECTNAME
+from bika.lims.config import PRIORITIES
 from bika.lims.content.bikaschema import BikaSchema
 from bika.lims.interfaces import IAnalysisRequest, ISamplePrepWorkflow
 from bika.lims.permissions import *
@@ -45,6 +48,8 @@ from bika.lims.utils.analysisrequest import notify_rejection
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getTransitionDate
 from bika.lims.workflow import getTransitionUsers
+from bika.lims.workflow import isActive
+from bika.lims.workflow import getReviewHistoryActionsList
 from bika.lims.workflow import isBasicTransitionAllowed
 from bika.lims.workflow import isTransitionAllowed
 from bika.lims.workflow import skip
@@ -310,13 +315,6 @@ schema = BikaSchema.copy() + Schema((
             showOn=True,
         ),
     ),
-    ComputedField(
-        'BatchUID',
-        expression='here.getBatch().UID() if here.getBatch() else ""',
-        widget=ComputedWidget(
-            visible=False,
-        ),
-    ),
     ReferenceField(
         'SamplingRound',
         allowed_types=('SamplingRound',),
@@ -509,25 +507,27 @@ schema = BikaSchema.copy() + Schema((
             label=_("Date Sampled"),
             size=20,
             show_time=True,
+            datepicker_nofuture=1,
             visible={
                 'edit': 'visible',
                 'view': 'visible',
+                'add': 'edit',
                 'secondary': 'disabled',
                 'header_table': 'prominent',
                 'sample_registered': {'view': 'invisible', 'edit': 'invisible'},
                 'to_be_sampled': {'view': 'invisible', 'edit': 'visible'},
                 'scheduled_sampling': {'view': 'invisible', 'edit': 'visible'},
-                'sampled': {'view': 'invisible', 'edit': 'invisible'},
-                'to_be_preserved': {'view': 'invisible', 'edit': 'invisible'},
-                'sample_due': {'view': 'invisible', 'edit': 'invisible'},
+                'sampled': {'view': 'visible', 'edit': 'invisible'},
+                'to_be_preserved': {'view': 'visible', 'edit': 'invisible'},
+                'sample_due': {'view': 'visible', 'edit': 'invisible'},
                 'sample_prep': {'view': 'visible', 'edit': 'invisible'},
-                'sample_received': {'view': 'invisible', 'edit': 'invisible'},
-                'attachment_due': {'view': 'invisible', 'edit': 'invisible'},
-                'to_be_verified': {'view': 'invisible', 'edit': 'invisible'},
-                'verified': {'view': 'invisible', 'edit': 'invisible'},
-                'published': {'view': 'invisible', 'edit': 'invisible'},
-                'invalid': {'view': 'invisible', 'edit': 'invisible'},
-                'rejected': {'view': 'invisible', 'edit': 'invisible'},
+                'sample_received': {'view': 'visible', 'edit': 'invisible'},
+                'attachment_due': {'view': 'visible', 'edit': 'invisible'},
+                'to_be_verified': {'view': 'visible', 'edit': 'invisible'},
+                'verified': {'view': 'visible', 'edit': 'invisible'},
+                'published': {'view': 'visible', 'edit': 'invisible'},
+                'invalid': {'view': 'visible', 'edit': 'invisible'},
+                'rejected': {'view': 'visible', 'edit': 'invisible'},
             },
             render_own_label=True,
         ),
@@ -594,15 +594,18 @@ schema = BikaSchema.copy() + Schema((
     ),# This field is a mirror of a Sample field with the same name
     DateTimeField(
         'SamplingDate',
-        required=1,
+        required=0,
         mode="rw",
         read_permission=permissions.View,
         write_permission=permissions.ModifyPortalContent,
         widget=DateTimeWidget(
-            label=_("Sampling Date"),
+            label=_("Expected Sampling Date"),
             size=20,
             show_time=True,
             render_own_label=True,
+            datepicker_nopast=1,
+            # We must use SamplingWOrkflowWidgetVisibility soon. For now we will
+            # handle it through JS
             # see SamplingWOrkflowWidgetVisibility
             visible={
                 'edit': 'visible',
@@ -1052,6 +1055,39 @@ schema = BikaSchema.copy() + Schema((
         ),
     ),
     StringField(
+        'Priority',
+        default='3',
+        vocabulary=PRIORITIES,
+        mode='rw',
+        read_permission=permissions.View,
+        write_permission=permissions.ModifyPortalContent,
+        widget=PrioritySelectionWidget(
+            label=_('Priority'),
+            format='select',
+            visible={
+                'edit': 'visible',
+                'view': 'visible',
+                'add': 'edit',
+                'header_table': 'visible',
+                'sample_registered':
+                    {'view': 'visible', 'edit': 'visible', 'add': 'edit'},
+                'to_be_sampled': {'view': 'visible', 'edit': 'visible'},
+                'scheduled_sampling': {'view': 'visible', 'edit': 'visible'},
+                'sampled': {'view': 'visible', 'edit': 'visible'},
+                'to_be_preserved': {'view': 'visible', 'edit': 'visible'},
+                'sample_due': {'view': 'visible', 'edit': 'visible'},
+                'sample_prep': {'view': 'visible', 'edit': 'invisible'},
+                'sample_received': {'view': 'visible', 'edit': 'visible'},
+                'attachment_due': {'view': 'visible', 'edit': 'visible'},
+                'to_be_verified': {'view': 'visible', 'edit': 'visible'},
+                'verified': {'view': 'visible', 'edit': 'visible'},
+                'published': {'view': 'visible', 'edit': 'invisible'},
+                'invalid': {'view': 'visible', 'edit': 'invisible'},
+                'rejected': {'view': 'visible', 'edit': 'invisible'},
+            },
+        ),
+    ),
+    StringField(
         'EnvironmentalConditions',
         mode="rw",
         read_permission=permissions.View,
@@ -1338,11 +1374,12 @@ schema = BikaSchema.copy() + Schema((
             },
         ),
     ),
-    DateTimeField(
-        'DatePublished',
+    ComputedField(
+        'DatePublishedViewer',
         mode="r",
         read_permission=permissions.View,
-        widget=DateTimeWidget(
+        expression="here.getDatePublished().strftime('%Y-%m-%d %H:%M %p') if here.getDatePublished() else ''",
+        widget=StringWidget(
             label=_("Date Published"),
             visible={
                 'edit': 'visible',
@@ -1588,11 +1625,6 @@ schema = BikaSchema.copy() + Schema((
         expression="here.getTemplate().Title() if here.getTemplate() else ''",
         widget=ComputedWidget(visible=False),
     ),
-    ComputedField(
-        'AnalysesNum',
-        expression="here._getAnalysesNum()",
-        widget=ComputedWidget(visible=False),
-    ),
     ReferenceField(
         'ChildAnalysisRequest',
         allowed_types=('AnalysisRequest',),
@@ -1819,6 +1851,7 @@ class AnalysisRequest(BaseFolder):
         client = self.aq_parent
         return client.getProvince()
 
+    @security.public
     def getBatch(self):
         # The parent type may be "Batch" during ar_add.
         # This function fills the hidden field in ar_add.pt
@@ -1826,6 +1859,19 @@ class AnalysisRequest(BaseFolder):
             return self.aq_parent
         else:
             return self.Schema()['Batch'].get(self)
+
+    @security.public
+    def getBatchUID(self):
+        batch = self.getBatch()
+        if batch:
+            return batch.UID()
+
+    @security.public
+    def setBatch(self, value=None):
+        original_value = self.Schema().getField('Batch').get(self)
+        if original_value != value:
+            self.Schema().getField('Batch').set(self, value)
+            self._reindexAnalyses(['getBatchUID'], False)
 
     def getDefaultMemberDiscount(self):
         """ compute default member discount if it applies """
@@ -1837,20 +1883,38 @@ class AnalysisRequest(BaseFolder):
             else:
                 return "0.00"
 
-    security.declareProtected(View, 'getResponsible')
-
-    def _getAnalysesNum(self):
-        """ Return the amount of analyses verified/total in the current AR """
-        verified = 0
+    @security.public
+    def getAnalysesNum(self):
+        """ Returns an array with the number of analyses for the current AR in
+            different statuses, like follows:
+                [verified, total, not_submitted, to_be_verified]
+        """
         total = 0
+        an_nums = [0,0,0,0]
         for analysis in self.getAnalyses():
             review_state = analysis.review_state
-            if review_state in ['verified' ,'published']:
-                verified += 1
-            if review_state not in 'retracted':
-                total += 1
-        return verified,total
+            analysis_object = analysis.getObject()
+            if review_state in ['retracted', 'rejected'] or \
+                    not isActive(analysis_object):
+                # Discard retracted analyses and non-active analyses
+                continue
 
+            actions = getReviewHistoryActionsList(analysis_object)
+            if 'verify' in actions:
+                # Assume the "last" state of analysis is verified
+                index = 0
+
+            elif 'submit' not in actions or review_state != 'to_be_verified':
+                # Assume the "first" state of analysis is results_pending
+                index = 2
+
+            else:
+                index = 3
+            an_nums[index] += 1
+            an_nums[1] += 1
+        return an_nums
+
+    @security.public
     def getResponsible(self):
         """ Return all manager info of responsible departments """
         managers = {}
@@ -1887,8 +1951,7 @@ class AnalysisRequest(BaseFolder):
 
         return mngr_info
 
-    security.declareProtected(View, 'getResponsible')
-
+    @security.public
     def getManagers(self):
         """ Return all managers of responsible departments """
         manager_ids = []
@@ -2462,17 +2525,9 @@ class AnalysisRequest(BaseFolder):
         :value: a date as a date object.
         """
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setSamplingDate(value)
-            self.Schema()['DateSampled'].set(self, value)
-        elif not sample:
-            logger.warning(
-                "setSamplingDate has failed for Analysis Request %s because "
-                "it hasn't got a sample." % self.id)
-        else:
-            logger.warning(
-                "setSamplingDate has failed for Analysis Request %s because "
-                "'value' doesn't have a value'." % self.id)
+            self.Schema()['SamplingDate'].set(self, value)
 
     security.declarePublic('getSamplingDate')
 
@@ -2483,8 +2538,7 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample:
             return sample.getSamplingDate()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('setSampler')
 
@@ -2494,17 +2548,9 @@ class AnalysisRequest(BaseFolder):
         :value: a user id.
         """
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setSampler(value)
             self.Schema()['Sampler'].set(self, value)
-        elif not sample:
-            logger.warning(
-                "setSampler has failed for Analysis Request %s because "
-                "it hasn't got a sample." % self.id)
-        else:
-            logger.warning(
-                "setSampler has failed for Analysis Request %s because "
-                "'value' doesn't have a value'." % self.id)
 
     security.declarePublic('getSampler')
 
@@ -2515,8 +2561,7 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample:
             return sample.getSampler()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('setDateSampled')
 
@@ -2526,17 +2571,9 @@ class AnalysisRequest(BaseFolder):
         :value: the time value
         """
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setDateSampled(value)
             self.Schema()['DateSampled'].set(self, value)
-        elif not sample:
-            logger.warning(
-                "setDateSampled has failed for Analysis Request %s because "
-                "it hasn't got a sample." % self.id)
-        else:
-            logger.warning(
-                "setDateSampled has failed for Analysis Request %s because "
-                "'value' doesn't have a value'." % self.id)
 
     security.declarePublic('getDateSampled')
 
@@ -2547,8 +2584,7 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample:
             return sample.getDateSampled()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('getDatePublished')
 
@@ -2562,17 +2598,9 @@ class AnalysisRequest(BaseFolder):
 
     def setSamplePoint(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setSamplePoint(value)
             self.Schema()['SamplePoint'].set(self, value)
-        elif not sample:
-            logger.warning(
-                "setSamplePoint has failed for Analysis Request %s because "
-                "it hasn't got a sample." % self.id)
-        else:
-            logger.warning(
-                "setSamplePoint has failed for Analysis Request %s because "
-                "'value' doesn't have a value'." % self.id)
 
     security.declarePublic('getSamplepoint')
 
@@ -2580,24 +2608,15 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample:
             return sample.getSamplePoint()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('setSampleType')
 
     def setSampleType(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setSampleType(value)
             self.Schema()['SampleType'].set(self, value)
-        elif not sample:
-            logger.warning(
-                "setSampleType has failed for Analysis Request %s because "
-                "it hasn't got a sample." % self.id)
-        else:
-            logger.warning(
-                "setSampleType has failed for Analysis Request %s because "
-                "'value' doesn't have a value'." % self.id)
 
     security.declarePublic('getSampleType')
 
@@ -2605,14 +2624,13 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample:
             return sample.getSampleType()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('setClientReference')
 
     def setClientReference(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setClientReference(value)
         self.Schema()['ClientReference'].set(self, value)
 
@@ -2628,7 +2646,7 @@ class AnalysisRequest(BaseFolder):
 
     def setClientSampleID(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setClientSampleID(value)
         self.Schema()['ClientSampleID'].set(self, value)
 
@@ -2644,17 +2662,9 @@ class AnalysisRequest(BaseFolder):
 
     def setSamplingDeviation(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setSamplingDeviation(value)
             self.Schema()['SamplingDeviation'].set(self, value)
-        elif not sample:
-            logger.warning(
-                "setSamplingDeviation has failed for Analysis Request %s "
-                "because it hasn't got a sample." % self.id)
-        else:
-            logger.warning(
-                "setSamplingDeviation has failed for Analysis Request %s "
-                "because 'value' doesn't have a value'." % self.id)
 
     security.declarePublic('getSamplingDeviation')
 
@@ -2665,8 +2675,7 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample:
             return sample.getSamplingDeviation()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('getSamplingDeviationTitle')
 
@@ -2677,8 +2686,7 @@ class AnalysisRequest(BaseFolder):
         sd = self.getSamplingDeviation()
         if sd:
             return sd.Title()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('getHazardous')
 
@@ -2689,8 +2697,7 @@ class AnalysisRequest(BaseFolder):
         sample_type = self.getSampleType()
         if sample_type:
             return sample_type.getHazardous()
-        else:
-            return False
+        return False
 
     security.declarePublic('getContactURL')
 
@@ -2701,8 +2708,7 @@ class AnalysisRequest(BaseFolder):
         contact = self.getContact()
         if contact:
             return contact.absolute_url_path()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('getSamplingWorkflowEnabled')
 
@@ -2713,14 +2719,13 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample:
             return sample.getSamplingWorkflowEnabled()
-        else:
-            return ''
+        return ''
 
     security.declarePublic('setSampleCondition')
 
     def setSampleCondition(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setSampleCondition(value)
         self.Schema()['SampleCondition'].set(self, value)
 
@@ -2736,7 +2741,7 @@ class AnalysisRequest(BaseFolder):
 
     def setEnvironmentalConditions(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setEnvironmentalConditions(value)
         self.Schema()['EnvironmentalConditions'].set(self, value)
 
@@ -2752,7 +2757,7 @@ class AnalysisRequest(BaseFolder):
 
     def setComposite(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setComposite(value)
         self.Schema()['Composite'].set(self, value)
 
@@ -2768,17 +2773,9 @@ class AnalysisRequest(BaseFolder):
 
     def setStorageLocation(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setStorageLocation(value)
             self.Schema()['StorageLocation'].set(self, value)
-        elif not sample:
-            logger.warning(
-                "setStorageLocation has failed for Analysis Request %s because"
-                " it hasn't got a sample." % self.id)
-        else:
-            logger.warning(
-                "setStorageLocation has failed for Analysis Request %s because"
-                " 'value' doesn't have a value'." % self.id)
 
     security.declarePublic('getStorageLocation')
 
@@ -2786,13 +2783,12 @@ class AnalysisRequest(BaseFolder):
         sample = self.getSample()
         if sample:
             return sample.getStorageLocation()
-        else:
-            return ''
+        return ''
     security.declarePublic('setAdHoc')
 
     def setAdHoc(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setAdHoc(value)
         self.Schema()['AdHoc'].set(self, value)
 
@@ -2808,7 +2804,7 @@ class AnalysisRequest(BaseFolder):
 
     def setScheduledSamplingSampler(self, value):
         sample = self.getSample()
-        if sample and value:
+        if sample:
             sample.setScheduledSamplingSampler(value)
         self.Schema()['ScheduledSamplingSampler'].set(self, value)
 
@@ -2822,7 +2818,7 @@ class AnalysisRequest(BaseFolder):
             .getField('ScheduledSamplingSampler').get(self)
 
     def getSamplers(self):
-        return getUsers(self, ['LabManager', 'Sampler'])
+        return getUsers(self, ['Sampler', ])
 
     def getPreparationWorkflows(self):
         """Return a list of sample preparation workflows.  These are identified
@@ -2994,6 +2990,39 @@ class AnalysisRequest(BaseFolder):
         Returns the date of verification as a DateTime object.
         """
         return getTransitionDate(self, 'verify', return_as_datetime=True)
+
+    @security.public
+    def getPrioritySortkey(self):
+        """
+        Returns the key that will be used to sort the current Analysis Request
+        based on both its priority and creation date. On ASC sorting, the oldest
+        item with highest priority will be displayed.
+        :return: string used for sorting
+        """
+        priority = self.getPriority()
+        created_date = self.created().ISO8601()
+        return '%s.%s' % (priority, created_date)
+
+    @security.public
+    def setPriority(self, value):
+        if not value:
+            value = self.Schema().getField('Priority').getDefault(self)
+        original_value = self.Schema().getField('Priority').get(self)
+        if original_value != value:
+            self.Schema().getField('Priority').set(self, value)
+            self._reindexAnalyses(['getPrioritySortkey'], True)
+
+    @security.private
+    def _reindexAnalyses(self, idxs=None, update_metadata=False):
+        if not idxs and not update_metadata:
+            return
+        if not idxs:
+            idxs = []
+        analyses = self.getAnalyses()
+        catalog = getToolByName(self, CATALOG_ANALYSIS_LISTING)
+        for analysis in analyses:
+            analysis_obj = analysis.getObject()
+            catalog.reindexObject(analysis_obj, idxs=idxs, update_metadata=1)
 
     def _getCreatorFullName(self):
         """

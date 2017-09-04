@@ -178,6 +178,17 @@ function AnalysisRequestAddByCol() {
             $(div).attr('id', 'archetypes-fieldname-' + fieldname + '-' + arnum)
         })
 
+        // If Sampling Workflow Enabled then We must hide Date Sampled Field.
+        // If Sampling Workflow Disabled then We must hide Sampling Dare Field.
+        if($("#bika_setup").attr("samplingwfenabled")){
+            $("tr[fieldname=DateSampled]").hide();
+        }else{
+            $("tr[fieldname=SamplingDate]").hide();
+            // Date Sampled is required in this case, display 'required' icon.
+            $("tr[fieldname=DateSampled]").find("em")
+                .before('<span class="fieldRequired" title="Required">&nbsp;</span>')
+        }
+
         // clear existing values (on page reload).
         $("#singleservice").val("")
         $("#singleservice").attr("uid", "new")
@@ -263,7 +274,7 @@ function AnalysisRequestAddByCol() {
                     template_set(index);
                 });
                 // Writing the sampling date
-                $('input[id^="SamplingDate-"]:visible').val(spec['samplingRoundSamplingDate']);
+                $('input[id^="SamplingDate-"]:visible').val(spec['samplingRoundSamplingDate']+ " 00:00");
                 // Hiding all fields which depends on the sampling round
                 var to_disable = ['Specification', 'SamplePoint', 'ReportDryMatter', 'Sample', 'Batch',
                     'SubGroup', 'SamplingDate', 'Composite', 'Profiles', 'DefaultContainerType', 'AdHoc'];
@@ -320,8 +331,8 @@ function AnalysisRequestAddByCol() {
             options.url = options.url + "&search_query=" + $(element).attr("search_query")
         }
         else {
-            options.url = options.url + "&base_query=" + $(element).attr("base_query")
-            options.url = options.url + "&search_query=" + $.toJSON(query)
+            options.url = options.url + "&base_query=" + encodeURIComponent($(element).attr("base_query"))
+            options.url = options.url + "&search_query=" + encodeURIComponent($.toJSON(query))
         }
         options.url = options.url + "&colModel=" + $.toJSON($.parseJSON($(element).attr("combogrid_options")).colModel)
         options.url = options.url + "&search_fields=" + $.toJSON($.parseJSON($(element).attr("combogrid_options"))['search_fields'])
@@ -341,6 +352,18 @@ function AnalysisRequestAddByCol() {
          */
         var element,uids
         var uid = $($("tr[fieldname='Client'] td[arnum='" + arnum + "'] input")[0]).attr("uid")
+        var client_set = uid !== undefined && uid != '';
+        var elements = ['Contact', 'CCContact', 'InvoiceContact',
+                        'SamplePoint', 'Template', 'Profiles',
+                        'Specification', 'Sample']
+        for (var i=0; i<elements.length; i++) {
+            element = $("tr[fieldname="+elements[i]+"] td[arnum=" + arnum + "] input")[0];
+            $(element).prop('disabled', !client_set);
+        }
+        if (!client_set) {
+            return;
+        }
+
         element = $("tr[fieldname=Contact] td[arnum=" + arnum + "] input")[0]
         filter_combogrid(element, "getParentUID", uid)
         // If client only has one contact then Auto-complete first Contact field.
@@ -361,6 +384,8 @@ function AnalysisRequestAddByCol() {
         uids = [uid, $("#bika_setup").attr("bika_analysisspecs_uid")]
         element = $("tr[fieldname=Specification] td[arnum=" + arnum + "] input")[0]
         filter_combogrid(element, "getClientUID", uids)
+        element = $("tr[fieldname=Sample] td[arnum=" + arnum + "] input")[0]
+        filter_combogrid(element, "getClientUID", [uid,]);
     }
     /**
     * If client only has one contact, then Auto-complete the Contact field.
@@ -1445,7 +1470,9 @@ function AnalysisRequestAddByCol() {
         $("tr[fieldname='Sample'] td[arnum] input[type='text']")
           .live('selected copy', function (event, item) {
                     var arnum = get_arnum(this)
-                    sample_set(arnum)
+                    if ($(this).val()) {
+                        sample_set(arnum)
+                    }
                 })
           .each(function (i, e) {
                     if ($(e).val()) {
@@ -1472,6 +1499,7 @@ function AnalysisRequestAddByCol() {
                       '_authenticator': $('input[name="_authenticator"]').val()
                   },
                   function (data) {
+                      var filled = [];
                       for (var i = 0; i < data.length; i++) {
                           var fieldname = data[i][0];
                           var fieldvalue = data[i][1];
@@ -1482,6 +1510,13 @@ function AnalysisRequestAddByCol() {
                               var element = $('#' + fieldname + '-' + arnum)[0]
                               $(element).attr('uid', fieldvalue)
                               $(element).val(fieldvalue)
+                              // Sometimes, there are both <fieldname_uid> and
+                              // <fieldname> keys in the data dictionary. In
+                              // those cases, the field that ends with '_uid'
+                              // gets preference over the field that doeesn't
+                              // ends with '_uid' when setting the state value.
+                              filled.push(fieldname);
+                              state_set(arnum, fieldname, fieldvalue);
                           }
                           // This
                           else {
@@ -1491,6 +1526,9 @@ function AnalysisRequestAddByCol() {
                               if (!element) {
                                   console.log('Selector #' + fieldname + '-' + arnum + ' not present in form')
                                   continue
+                              }
+                              if(element.getAttribute("datetimepicker") && fieldvalue && fieldvalue.indexOf(" ")==-1){
+                                fieldvalue = fieldvalue + " 00:00";
                               }
                               // here we go
                               switch (element.type) {
@@ -1515,7 +1553,14 @@ function AnalysisRequestAddByCol() {
                                   default:
                                       console.log('Unhandled field type for field ' + fieldname + ': ' + element.type)
                               }
-                              state_set(arnum, fieldname, fieldvalue)
+                              if (filled.indexOf(fieldname) === -1) {
+                                  // Sometimes, there are both <fieldname_uid> and
+                                  // <fieldname> keys in the data dictionary. In
+                                  // those cases, the field that ends with '_uid'
+                                  // gets preference over the field that doeesn't
+                                  // ends with '_uid' when setting the state value.
+                                  state_set(arnum, fieldname, fieldvalue);
+                              }
                           }
                       }
                   })
@@ -1728,10 +1773,11 @@ function AnalysisRequestAddByCol() {
             // Expand category
             var service = service_data[si]
             services.push(service)
-            var th = $("table[form_id='" + service['PointOfCapture'] + "'] " +
-                       "th[cat='" + service['CategoryTitle'] + "']")
-            if(expanded_categories.indexOf(th) < 0) {
-                expanded_categories.push(th)
+            var th_key = "table[form_id='" + service['PointOfCapture'] + "'] " +
+                       "th[cat='" + service['CategoryTitle'] + "']"
+            var th = $(th_key)
+            if(expanded_categories.indexOf(th_key) < 0) {
+                expanded_categories.push(th_key)
                 var def = $.Deferred()
                 def = category_header_expand_handler(th)
                 defs.push(def)
@@ -1780,17 +1826,21 @@ function AnalysisRequestAddByCol() {
             $(this).removeClass("expanded").addClass("collapsed")
         })
     }
-
-    function category_header_expand_handler(element) {
-        /* Deferred function to expand the category with ajax (or not!!)
-         on first expansion.  duplicated from bika.lims.bikalisting.js, this code
-         fires when categories are expanded automatically (eg, when profiles or templates require
-         that the category contents are visible for selection)
-
-         Also, this code returns deferred objects, not their promises.
-
-         :param: element - The category header TH element which normally receives 'click' event
-         */
+    /* Deferred function to expand the category with ajax (or not!!)
+    * on first expansion.  duplicated from bika.lims.bikalisting.js, this code
+    * fires when categories are expanded automatically (eg, when profiles or
+    * templates require
+    * that the category contents are visible for selection)
+    *
+    * Also, this code returns deferred objects, not their promises.
+    *
+    * @param {DOM Object} element - The category header TH element which
+    * normally receives 'click' event.
+    * @param {Number} arnum: the analysis request column number.
+    * @param {String} serv_uid: uid of the analysis service.
+    * @return {Object} deferred objects, not their promises.
+    */
+    function category_header_expand_handler(element, arnum, serv_uid) {
         var def = $.Deferred()
         // with form_id allow multiple ajax-categorised tables in a page
         var form_id = $(element).parents("[form_id]").attr("form_id")
@@ -1830,6 +1880,12 @@ function AnalysisRequestAddByCol() {
                     $("[form_id='" + form_id + "'] tr[data-ajax_category='" + cat_title + "']").replaceWith(rows);
                     $(element).removeClass("collapsed").addClass("expanded");
                     specification_apply();
+                    // If service data defined, set the checkbox
+                    if (arnum !== undefined && serv_uid !== undefined){
+                        analysis_cb_check(arnum, serv_uid);
+                        recalc_prices(arnum);
+                        _partition_indicators_set(arnum);
+                    }
                     def.resolve();
                 })
         }
@@ -1837,6 +1893,12 @@ function AnalysisRequestAddByCol() {
             // When ajax_categories are disabled, all cat items exist as TR elements:
             $(element).parent().nextAll("tr[cat='" + cat_title + "']").toggle(true)
             $(element).removeClass("collapsed").addClass("expanded")
+            // If service data defined, set the checkbox
+            if (arnum !== undefined && serv_uid !== undefined){
+                analysis_cb_check(arnum, serv_uid);
+                recalc_prices(arnum);
+                _partition_indicators_set(arnum);
+            }
             def.resolve()
         }
         return def
@@ -1878,7 +1940,7 @@ function AnalysisRequestAddByCol() {
                         $("#singleservice").focus()
                     }
                     var title = $(this).parents("[title]").attr("title")
-                    deps_calc(arnum, [uid], false, title)
+                    deps_calc(arnum, [uid], true, title)
                     partition_indicators_set(arnum)
                     recalc_prices(arnum)
                 })
@@ -2045,10 +2107,11 @@ function AnalysisRequestAddByCol() {
                 var Dependencies = lims.AnalysisService.Dependencies(uid)
                 for (i = 0; i < Dependencies.length; i++) {
                     var Dep = Dependencies[i]
-                    dep_element = $("tr[uid='" + Dep['Service_uid'] + "'] " +
+                    dep_element = $("tr[uid='" + Dep + "'] " +
                                     "td[class*='ar\\." + arnum + "'] " +
                                     "input[type='checkbox']")
                     if (!$(dep_element).prop("checked")) {
+                        // not working because Dep is a uid
                         dep_titles.push(Dep['Service'])
                         dep_services.push(Dep)
                     }
@@ -2077,10 +2140,11 @@ function AnalysisRequestAddByCol() {
                 var Dependants = lims.AnalysisService.Dependants(uid)
                 for (i = 0; i < Dependants.length; i++) {
                     Dep = Dependants[i]
-                    dep_element = $("tr[uid='" + Dep['Service_uid'] + "'] " +
+                    dep_element = $("tr[uid='" + Dep + "'] " +
                                     "td[class*='ar\\." + arnum + "'] " +
                                     "input[type='checkbox']")
                     if ($(dep_element).prop("checked")) {
+                        // not working because Dep is a uid
                         dep_titles.push(Dep['Service'])
                         dep_services.push(Dep)
                     }
@@ -2108,6 +2172,7 @@ function AnalysisRequestAddByCol() {
 
     function dependants_remove_confirm(initiator, dep_services,
                                        dep_titles) {
+        // this function is not used!
         var d = $.Deferred()
         $("body").append(
           "<div id='messagebox' style='display:none' title='" + _("Service dependencies") + "'>" +
@@ -2141,7 +2206,7 @@ function AnalysisRequestAddByCol() {
     function dependants_remove_yes(arnum, dep_services) {
         for (var i = 0; i < dep_services.length; i += 1) {
             var Dep = dep_services[i]
-            var uid = Dep['Service_uid']
+            var uid = Dep
             analysis_cb_uncheck(arnum, uid)
         }
         _partition_indicators_set(arnum)
@@ -2160,6 +2225,7 @@ function AnalysisRequestAddByCol() {
          initiator_title is the dialog title, this could be a service but also could
          be "Dry Matter" or some other name
          */
+         // this function is not used!
         var d = $.Deferred()
         var html = "<div id='messagebox' style='display:none' title='" + _("Service dependencies") + "'>"
         html = html + _("<p>${service} requires the following services to be selected:</p>" +
@@ -2199,7 +2265,7 @@ function AnalysisRequestAddByCol() {
          */
         for (var i = 0; i < dep_services.length; i++) {
             var Dep = dep_services[i]
-            var uid = Dep['Service_uid']
+            var uid = Dep
             var dep_cb = $("tr[uid='" + uid + "'] " +
                            "td[class*='ar\\." + arnum + "'] " +
                            "input[type='checkbox']")
@@ -2209,17 +2275,13 @@ function AnalysisRequestAddByCol() {
                     // skip if checked already
                     continue
                 }
+                else {
+                    analysis_cb_check(arnum, uid);
+                }
             }
-            else {
-                // create new row for all services we may need
-                singleservice_duplicate(Dep['Service_uid'],
-                                        Dep["Service"],
-                                        Dep["Keyword"],
-                                        Dep["Price"],
-                                        Dep["VAT"])
+            else{
+                expand_category_for_service(Dep, arnum);
             }
-            // finally check the service
-            analysis_cb_check(arnum, uid);
         }
         recalc_prices(arnum)
         _partition_indicators_set(arnum)
@@ -2609,5 +2671,36 @@ function AnalysisRequestAddByCol() {
         var arcolswidth = $('table.analysisrequest td[arnum]').width();
         $('table tr th[id^="foldercontents-ar."]').css({'width':arcolswidth, 'text-align':'center'});
         $('table tr[id^="folder-contents-item-"] td[class*="ar"]').css({'width':arcolswidth, 'text-align':'center'});
+    }
+
+    /**
+    * Given an analysis service UID, this function expands the category for
+    * that service and selects it.
+    * @param {String} serv_uid: uid of the analysis service.
+    * @param {Number} arnum: the analysis request column number.
+    * @return {None} nothing.
+    */
+    function expand_category_for_service(serv_uid, arnum){
+
+        // Ajax getting the category from uid
+        var request_data = {
+            catalog_name: "uid_catalog",
+            UID: serv_uid,
+            include_methods: 'getCategoryTitle',
+        };
+        window.bika.lims.jsonapi_read(request_data, function(data) {
+            if (data.objects.length < 1 ) {
+               var msg =
+                   '[bika.lims.analysisrequest.add_by_col.js] No data returned ' +
+                   'while running "expand_category_for_service" for ' + serv_uid;
+               console.warn(msg);
+               window.bika.lims.warning(msg);
+            } else {
+                var cat_title = data.objects[0].getCategoryTitle;
+                // Expand category by uid and select the service
+                var element = $("th[cat='" + cat_title + "']");
+                category_header_expand_handler(element, arnum, serv_uid);
+            }
+        });
     }
 }

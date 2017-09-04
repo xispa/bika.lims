@@ -116,7 +116,7 @@ class ClientContacts(object):
     implements(IContextSourceBinder)
 
     def __call__(self, context):
-        container = context.aq_parent
+        container = context
         terms = []
         # Show only the client's
         if container.portal_type == 'Client':
@@ -160,7 +160,7 @@ class ISamplingRound(model.Schema):
                 title=_(u"Sampler"),
                 description=_(u"The default Sampler for these Sampling Round"),
                 required=True,
-                source=Samplers(['LabManager', 'Sampler']),
+                source=Samplers(['Sampler']),
                 )
 
         department = schema.Choice(

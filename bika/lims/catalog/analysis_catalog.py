@@ -30,6 +30,7 @@ _indexes_dict = {
     'getResultCaptureDate': 'DateIndex',
     'getDateAnalysisPublished': 'DateIndex',
     'getClientUID': 'FieldIndex',
+    'getClientTitle': 'FieldIndex',
     'getAnalyst': 'FieldIndex',
     'getRequestID': 'FieldIndex',
     'getClientOrderNumber': 'FieldIndex',
@@ -50,6 +51,7 @@ _indexes_dict = {
     'getAnalysisRequestPrintStatus': 'FieldIndex',
     'getWorksheetUID': 'FieldIndex',
     'getOriginalReflexedAnalysisUID': 'FieldIndex',
+    'getPrioritySortkey': 'FieldIndex',
 }
 # Defining the columns for this catalog
 _columns_list = [
@@ -95,6 +97,7 @@ _columns_list = [
     'getVerificators',
     'getLastVerificator',
     'getIsReflexAnalysis',
+    'getPrioritySortkey',
     # TODO-performance: All that comes from services could be
     # defined as a service metacolumn instead of an analysis one
     'getResultOptions',
