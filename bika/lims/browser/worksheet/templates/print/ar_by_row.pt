@@ -1,5 +1,5 @@
 <!--
-    Worksheet AR-by-row Template
+    Worksheet AR-by-column Template
 
     All data is available using the worksheet dictionary.
     Example for accessing and displaying data:
@@ -58,37 +58,71 @@
            tal:content="worksheet/analyst/fullname"></a>
     </div>
 </div>
-<!-- Repeat the table every 6 Analyses -->
-<div class="content" tal:repeat="anst python:view.splitList(anstitles,view.getNumColumns())">
+
+<!-- Repeat the table every 4 ARs -->
+<div class="content" tal:repeat= "ars python:view.splitList(ars,view.getNumColumns())">
     <table>
         <thead>
             <tr>
-                <th i18n:translate="">Request ID</th>
-                <th tal:repeat="ans anst" tal:content="ans"></th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr tal:repeat="ar ars">
-                <td class="requestid">
+                              <th tal:repeat="ar ars">
+			 <div tal:attributes="href ar/client/url"
+                       tal:content="ar/position"></div>
                     <div class='barcode'
                         data-code='code128'
                         data-showHRI='false'
-                        data-barHeight='15'
+                        data-barHeight='25'
                         data-addQuietZone='true'
                         tal:attributes="data-id ar/id"></div>
-                    <div class="arinfo">
+ 
+                </th>
+            </tr>
+        </thead>
+       <tbody><!--
+           <tr>
+                <th i18n:translate="">Client</th>
+                <td tal:repeat="ar ars">
                     <a tal:attributes="href ar/client/url"
-                       tal:content="ar/client/name"></a><br/>
+                       tal:content="ar/client/name"></a>
+                </td>
+            </tr>
+            <tr>
+                <th i18n:translate="">Sample Type</th>
+                <td tal:repeat="ar ars">
                     <a tal:attributes="href ar/sample/sample_type/url"
                        tal:content="ar/sample/sample_type/title"
-                       tal:condition="ar/sample/sample_type"></a><br/>
-                    <span tal:content="ar/date_received"></span>
-                    </div>
+                       tal:condition="ar/sample/sample_type"></a>
                 </td>
-                <tal:results repeat="ans anst">
-                    <td tal:attributes="class python:'result' if ans in [an['title'] for an in ar['analyses']] else 'result no-result';"><div>&nbsp;</div></td>
-                </tal:results>
             </tr>
+            <tr>
+                <th i18n:translate="">Sample</th>
+                <td tal:repeat="ar ars">
+                    <a tal:attributes="href ar/sample/url"
+                       tal:content="ar/sample/id"></a>
+                </td> 
+            </tr>
+            <tr>
+                <th i18n:translate="">Sampling Date</th>
+                <td tal:repeat="ar ars"
+                    tal:content="ar/sample/date_sampled">
+                </td>
+            </tr>
+            <tr>
+                <th i18n:translate="">Date received</th>
+                <td tal:repeat="ar ars"
+                    tal:content="ar/date_received">
+                </td>
+            </tr>
+            <tr>
+                <th tal:attributes="colspan python:len(ars)+1"
+                    i18n:translate=""
+                    class="analyses">Analyses</th>
+            </tr>
+            <tr tal:repeat="antitle anstitles">
+                <th tal:content="antitle"></th>
+                <tal:results tal:repeat="ar ars">
+                    <td tal:attributes="class python:'result' if antitle in [an['title'] for an in ar['analyses']] else 'result no-result';"><div>&nbsp;</div></td>
+                </tal:results> 
+            </tr>-->
         </tbody>
     </table>
 </div>
