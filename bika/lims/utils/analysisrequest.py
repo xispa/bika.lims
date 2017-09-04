@@ -179,6 +179,11 @@ def create_analysisrequest(client, request, values, analyses=None,
     reject_field = values.get('RejectionReasons', '')
     if reject_field and reject_field.get('checkbox', False):
         doActionFor(ar, 'reject')
+        return ar
+
+    # NMRL-246 Always force the transition from sample_due to sample_received
+    # This only applies to NMRL instance
+    doActionFor(ar, 'receive')
 
     return ar
 
