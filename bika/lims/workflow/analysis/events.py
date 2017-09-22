@@ -2,6 +2,7 @@ from Products.CMFCore.utils import getToolByName
 from DateTime import DateTime
 
 from bika.lims import logger
+from bika.lims.interfaces import IRoutineAnalysis
 from bika.lims.utils.analysis import create_analysis
 from bika.lims.workflow import changeWorkflowState
 from bika.lims.workflow import doActionFor
@@ -85,6 +86,7 @@ def after_submit(obj):
     ws = obj.getWorksheet()
     if ws:
         doActionFor(ws, 'submit')
+    _reindex_request(obj)
 
 
 def after_retract(obj):
@@ -132,6 +134,8 @@ def after_retract(obj):
     for dependent in dependents:
         doActionFor(dependent, 'retract')
 
+    _reindex_request(obj)
+
 
 def after_verify(obj):
     """
@@ -163,6 +167,8 @@ def after_verify(obj):
     ws = obj.getWorksheet()
     if ws:
         doActionFor(ws, 'verify')
+    _reindex_request(obj)
+
 
 
 def after_cancel(obj):
@@ -177,6 +183,7 @@ def after_cancel(obj):
         skip(obj, "cancel", unskip=True)
         ws.removeAnalysis(obj)
     obj.reindexObject()
+    _reindex_request(obj)
 
 
 def after_reject(obj):
@@ -190,6 +197,7 @@ def after_reject(obj):
         ws = obj.getWorksheet()
         ws.removeAnalysis(obj)
     obj.reindexObject()
+    _reindex_request(obj)
 
 
 def after_attach(obj):
@@ -229,3 +237,11 @@ def after_attach(obj):
             if can_attach:
                 workflow.doActionFor(ws, "attach")
     obj.reindexObject()
+    _reindex_request(obj)
+
+
+def _reindex_request(obj):
+    if IRoutineAnalysis.providedBy(obj):
+        request = obj.getRequest()
+        if request:
+            request.reindexObject()

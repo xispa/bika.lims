@@ -90,11 +90,11 @@ def doActionFor(instance, action_id, active_only=True, allowed_transition=True):
     workflow = getToolByName(instance, "portal_workflow")
     skipaction = skip(instance, action_id, peek=True)
     if skipaction:
-        clazzname = instance.__class__.__name__
-        msg = "Skipping transition '{0}': {1} '{2}'".format(action_id,
-                                                            clazzname,
-                                                            instance.getId())
-        logger.info(msg)
+        #clazzname = instance.__class__.__name__
+        #msg = "Skipping transition '{0}': {1} '{2}'".format(action_id,
+        #                                                    clazzname,
+        #                                                    instance.getId())
+        #logger.info(msg)
         return actionperformed, message
 
     if allowed_transition:
@@ -425,9 +425,12 @@ def isTransitionAllowed(instance, transition_id, active_only=True,
     :rtype: bool
     """
     if active_only and not isActive(instance):
-        # The instance is not active (its state is cancelled or inactive, so
-        # there is no need of further steps
-        return False
+        inactive_transitions = ['reinstate, 'activate']
+        if transition_id not in inactive_transitions:
+            # The instance is not active (its state is cancelled or inactive, and
+            # the transition_id passed in does not belong to any of the cancellation
+            # or inactive workflows, so there is no need of further steps
+            return False
 
     if check_action and not isActionSupported(instance, transition_id):
         # From the current state of the instance, the transition cannot be
@@ -497,11 +500,8 @@ def wasTransitionPerformed(instance, transition_id):
     :returns: true or false
     :rtype: bool
     """
-    review_history = getReviewHistory(instance)
-    for event in review_history:
-        if event['action'] == transition_id:
-            return True
-    return False
+    transitions = getReviewHistoryActionsList(instance)
+    return transition_id in transitions
 
 
 def isActive(instance):
