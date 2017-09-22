@@ -19,6 +19,7 @@ from bika.lims.content.abstractanalysis import AbstractAnalysis
 from bika.lims.content.abstractanalysis import schema
 from bika.lims.interfaces import IAnalysis, IRoutineAnalysis, \
     ISamplePrepWorkflow
+from bika.lims.interfaces.analysis import IRequestAnalysis
 from bika.lims.workflow import getTransitionDate
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import isBasicTransitionAllowed
@@ -88,6 +89,16 @@ Uncertainty = FixedPointField(
         label=_("Uncertainty")
     )
 )
+# This field keep track if the field hidden has been set manually or not. If
+# this value is false, the system will assume the visibility of this analysis
+# in results report will depend on the value set at AR, Profile or Template
+# levels (see AnalysisServiceSettings fields in AR). If the value for this
+# field is set to true, the system will assume the visibility of the analysis
+# will only depend on the value set for the field Hidden (bool).
+HiddenManually = BooleanField(
+    'HiddenManually',
+    default=False,
+)
 
 schema = schema.copy() + Schema((
     IsReflexAnalysis,
@@ -98,11 +109,12 @@ schema = schema.copy() + Schema((
     ReflexRuleLocalID,
     SamplePartition,
     Uncertainty,
+    HiddenManually,
 ))
 
 
 class AbstractRoutineAnalysis(AbstractAnalysis):
-    implements(IAnalysis, IRoutineAnalysis, ISamplePrepWorkflow)
+    implements(IAnalysis, IRequestAnalysis, IRoutineAnalysis, ISamplePrepWorkflow)
     security = ClassSecurityInfo()
     displayContentsTab = False
     schema = schema
@@ -131,6 +143,17 @@ class AbstractRoutineAnalysis(AbstractAnalysis):
         ar = self.getRequest()
         if ar:
             return ar.UID()
+
+    @security.public
+    def getRequestURL(self):
+        """Returns the url path of the Analysis Request object this analysis
+        belongs to. Returns None if there is no Request assigned.
+        :return: the Analysis Request URL path this analysis belongs to
+        :rtype: str
+        """
+        request = self.getRequest()
+        if request:
+            return request.absolute_url_path()
 
     @security.public
     def getClientTitle(self):
@@ -255,28 +278,25 @@ class AbstractRoutineAnalysis(AbstractAnalysis):
             return duetime
 
     @security.public
+    @deprecated("[1709] Use getRequestID instead")
     def getAnalysisRequestTitle(self):
         """This is a catalog metadata column
         """
-        request = self.getRequest()
-        if request:
-            return request.Title()
+        return self.getRequestID()
 
     @security.public
+    @deprecated("[1709] Use getRequestUID instead")
     def getAnalysisRequestUID(self):
         """This method is used to populate catalog values
         """
-        request = self.getRequest()
-        if request:
-            return request.UID()
+        return self.getRequestUID()
 
     @security.public
+    @deprecated("[1709] Use getRequestURL instead")
     def getAnalysisRequestURL(self):
         """This is a catalog metadata column
         """
-        request = self.getRequest()
-        if request:
-            return request.absolute_url_path()
+        return self.getRequestURL()
 
     @security.public
     def getSampleTypeUID(self):
@@ -412,6 +432,56 @@ class AbstractRoutineAnalysis(AbstractAnalysis):
             if self.UID() in deps:
                 dependencies.append(sibling)
         return dependencies
+
+    @security.public
+    def getPrioritySortkey(self):
+        """
+        Returns the key that will be used to sort the current Analysis
+        Delegates to getPrioritySortKey function from the AnalysisRequest
+        :return: string used for sorting
+        """
+        analysis_request = self.getRequest()
+        if analysis_request:
+            return analysis_request.getPrioritySortkey()
+
+    @security.public
+    def getHidden(self):
+        """ Returns whether if the analysis must be displayed in results
+        reports or not, as well as in analyses view when the user logged in
+        is a Client Contact.
+
+        If the value for the field HiddenManually is set to False, this function
+        will delegate the action to the method getAnalysisServiceSettings() from
+        the Analysis Request.
+
+        If the value for the field HiddenManually is set to True, this function
+        will return the value of the field Hidden.
+        :return: true or false
+        :rtype: bool
+        """
+        if self.getHiddenManually():
+            return self.getField('Hidden').get(self)
+        request = self.getRequest()
+        if request:
+            service_uid = self.getServiceUID()
+            ar_settings = request.getAnalysisServiceSettings(service_uid)
+            return ar_settings.get('hidden', False)
+        return False
+
+    @security.public
+    def setHidden(self, hidden):
+        """ Sets if this analysis must be displayed or not in results report and
+        in manage analyses view if the user is a lab contact as well.
+
+        The value set by using this field will have priority over the visibility
+        criteria set at Analysis Request, Template or Profile levels (see
+        field AnalysisServiceSettings from Analysis Request. To achieve this
+        behavior, this setter also sets the value to HiddenManually to true.
+        :param hidden: true if the analysis must be hidden in report
+        :type hidden: bool
+        """
+        self.setHiddenManually(True)
+        self.getField('Hidden').set(self, hidden)
 
     @security.public
     def setReflexAnalysisOf(self, analysis):

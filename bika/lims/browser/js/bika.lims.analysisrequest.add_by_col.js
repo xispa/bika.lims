@@ -178,6 +178,17 @@ function AnalysisRequestAddByCol() {
             $(div).attr('id', 'archetypes-fieldname-' + fieldname + '-' + arnum)
         })
 
+        // If Sampling Workflow Enabled then We must hide Date Sampled Field.
+        // If Sampling Workflow Disabled then We must hide Sampling Dare Field.
+        if($("#bika_setup").attr("samplingwfenabled")){
+            $("tr[fieldname=DateSampled]").hide();
+        }else{
+            $("tr[fieldname=SamplingDate]").hide();
+            // Date Sampled is required in this case, display 'required' icon.
+            $("tr[fieldname=DateSampled]").find("em")
+                .before('<span class="fieldRequired" title="Required">&nbsp;</span>')
+        }
+
         // clear existing values (on page reload).
         $("#singleservice").val("")
         $("#singleservice").attr("uid", "new")
@@ -1516,7 +1527,7 @@ function AnalysisRequestAddByCol() {
                                   console.log('Selector #' + fieldname + '-' + arnum + ' not present in form')
                                   continue
                               }
-                              if(element.getAttribute("datetimepicker") && fieldvalue.indexOf(" ")==-1){
+                              if(element.getAttribute("datetimepicker") && fieldvalue && fieldvalue.indexOf(" ")==-1){
                                 fieldvalue = fieldvalue + " 00:00";
                               }
                               // here we go
@@ -1762,10 +1773,11 @@ function AnalysisRequestAddByCol() {
             // Expand category
             var service = service_data[si]
             services.push(service)
-            var th = $("table[form_id='" + service['PointOfCapture'] + "'] " +
-                       "th[cat='" + service['CategoryTitle'] + "']")
-            if(expanded_categories.indexOf(th) < 0) {
-                expanded_categories.push(th)
+            var th_key = "table[form_id='" + service['PointOfCapture'] + "'] " +
+                       "th[cat='" + service['CategoryTitle'] + "']"
+            var th = $(th_key)
+            if(expanded_categories.indexOf(th_key) < 0) {
+                expanded_categories.push(th_key)
                 var def = $.Deferred()
                 def = category_header_expand_handler(th)
                 defs.push(def)
@@ -2598,7 +2610,7 @@ function AnalysisRequestAddByCol() {
                 {
                     type: "POST",
                     dataType: "json",
-                    url: window.location.href.split("/portal_factory")[0] + "/analysisrequest_submit",
+                    url: window.location.href.split("/portal_factory")[0] + "/analysisrequest_submit_async",
                     data: request_data,
                     success: function (data) {
                         /*

@@ -7,6 +7,7 @@ from plone import api
 from Products.CMFCore.permissions import ModifyPortalContent
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
 from bika.lims import bikaMessageFactory as _
+from bika.lims.config import PRIORITIES
 from bika.lims.utils import t
 from bika.lims.browser.bika_listing import BikaListingView
 from bika.lims.browser.analysisrequest.analysisrequests_filter_bar\
@@ -20,8 +21,11 @@ from bika.lims.catalog import CATALOG_ANALYSIS_REQUEST_LISTING
 from DateTime import DateTime
 from Products.Archetypes import PloneMessageFactory as PMF
 from plone.app.layout.globals.interfaces import IViewView
+from plone.protect import CheckAuthenticator
 from Products.CMFCore.utils import getToolByName
 from zope.interface import implements
+from collective.taskqueue.interfaces import ITaskQueue
+from zope.component import queryUtility
 from datetime import datetime, date
 import json
 
@@ -54,7 +58,6 @@ class AnalysisRequestsView(BikaListingView):
             self.view_url = self.view_url + "/analysisrequests"
 
         self.allow_edit = True
-
         self.show_sort_column = False
         self.show_select_row = False
         self.show_select_column = True
@@ -72,6 +75,13 @@ class AnalysisRequestsView(BikaListingView):
             getDisplayAdvancedFilterBarForAnalysisRequests()
 
         self.columns = {
+            'Priority': {
+                'title': '',
+                'index': 'getPrioritySortkey',
+                'sortable': True,},
+            'Progress': {
+                'title': 'Progress',
+                'toggle': True},
             'getRequestID': {
                 'title': _('Request ID'),
                 'attr': 'getId',
@@ -147,12 +157,12 @@ class AnalysisRequestsView(BikaListingView):
             # 'AdHoc': {'title': _('Ad-Hoc'),
             #           'toggle': False},
             'SamplingDate': {
-                'title': _('Sampling Date'),
+                'title': _('Expected Sampling Date'),
                 'index': 'getSamplingDate',
-                'toggle': True},
+                'toggle': SamplingWorkflowEnabled},
             'getDateSampled': {
                 'title': _('Date Sampled'),
-                'toggle': SamplingWorkflowEnabled,
+                'toggle': True,
                 'input_class': 'datetimepicker_nofuture',
                 'input_width': '10'},
             'getDateVerified': {
@@ -216,7 +226,9 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              {'id': 'reinstate'}],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                         'Progress',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -255,7 +267,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                             ],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -291,7 +304,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              ],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -325,7 +339,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              ],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -365,7 +380,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              {'id': 'reinstate'}],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -401,7 +417,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              {'id': 'reinstate'}],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -439,7 +456,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              {'id': 'reinstate'}],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -475,7 +493,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              ],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -509,7 +528,8 @@ class AnalysisRequestsView(BikaListingView):
                                'sort_order': 'reverse'},
              'transitions': [{'id': 'republish'}],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -637,7 +657,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              {'id': 'reinstate'}],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -684,7 +705,8 @@ class AnalysisRequestsView(BikaListingView):
                              {'id': 'cancel'},
                              {'id': 'reinstate'}],
              'custom_actions': [],
-             'columns': ['getRequestID',
+             'columns': ['Priority',
+                        'getRequestID',
                         'getSample',
                         'BatchID',
                         # 'SubGroup',
@@ -796,6 +818,15 @@ class AnalysisRequestsView(BikaListingView):
         item['Creator'] = self.user_fullname(obj.Creator)
         # If we redirect from the folderitems view we should check if the
         # user has permissions to medify the element or not.
+        priority_sort_key = obj.getPrioritySortkey
+        if not priority_sort_key:
+            # Default priority is Medium = 3.
+            # The format of PrioritySortKey is <priority>.<created>
+            priority_sort_key = '3.%s' % obj.created.ISO8601()
+        priority = priority_sort_key.split('.')[0]
+        priority_text = PRIORITIES.getValue(priority)
+        priority_div = '<div class="priority-ico priority-%s"><span class="notext">%s</span><div>'
+        item['replace']['Priority'] = priority_div % (priority, priority_text)
         item['getRequestID'] = obj.getId
         url = obj.getURL() + "?check_edit=1"
         item['replace']['getRequestID'] = "<a href='%s'>%s</a>" % \
@@ -805,10 +836,33 @@ class AnalysisRequestsView(BikaListingView):
 
         analysesnum = obj.getAnalysesNum
         if analysesnum:
-            item['getAnalysesNum'] = \
-                str(analysesnum[0]) + '/' + str(analysesnum[1])
+            num_verified = str(analysesnum[0])
+            num_total = str(analysesnum[1])
+            item['getAnalysesNum'] = '{0}/{1}'.format(num_verified, num_total)
         else:
             item['getAnalysesNum'] = ''
+
+        # Progress
+        num_verified = 0
+        num_submitted = 0
+        num_total = 0
+        if analysesnum and len(analysesnum) > 1:
+            num_verified = analysesnum[0]
+            num_total = analysesnum[1]
+            num_submitted = num_total - num_verified
+            if len(analysesnum) > 2:
+                num_wo_results = analysesnum[2]
+                num_submitted = num_total - num_verified - num_wo_results
+        num_steps_total = num_total * 2
+        num_steps = (num_verified * 2) + (num_submitted)
+        progress_perc = 0
+        if num_steps > 0 and num_steps_total > 0:
+            progress_perc = (num_steps * 100) / num_steps_total
+        progress = '<div class="progress-bar-container">' + \
+                   '<div class="progress-bar" style="width:{0}%"></div>' + \
+                   '<div class="progress-perc">{0}%</div></div>'
+        item['replace']['Progress'] = progress.format(progress_perc)
+
         item['BatchID'] = obj.getBatchID
         if obj.getBatchID:
             item['replace']['BatchID'] = "<a href='%s'>%s</a>" % \
@@ -882,15 +936,17 @@ class AnalysisRequestsView(BikaListingView):
         # TODO-performance: If SamplingWorkflowEnabled, we have to get the
         # full object to check the user permissions, so far this is
         # a performance hit.
-        if obj.getSamplingWorkflowEnabled and\
-                (not obj.getSamplingDate or not
-                    obj.getSamplingDate > DateTime()):
-            datesampled = self.ulocalized_time(
-                obj.getDateSampled, long_format=True)
-            if not datesampled:
+        if obj.getSamplingWorkflowEnabled:
+            # We don't do anything with Sampling Date. User can modify Sampling date
+            # inside AR view. In this listing view, we only let the user to edit Date Sampled
+            # and Sampler if he wants to make 'sample' transaction.
+            if not obj.getDateSampled:
                 datesampled = self.ulocalized_time(
                     DateTime(), long_format=True)
                 item['class']['getDateSampled'] = 'provisional'
+            else:
+                datesampled = self.ulocalized_time(obj.getDateSampled, long_format=True)
+
             sampler = obj.getSampler
             if sampler:
                 item['replace']['getSampler'] = obj.getSamplerFullName
@@ -909,9 +965,10 @@ class AnalysisRequestsView(BikaListingView):
                     item['allow_edit'] = ['getSampler', 'getDateSampled']
                     # TODO-performance: hit performance while getting the
                     # sample object...
+                    # TODO Can LabManagers be a Sampler?!
                     samplers = getUsers(
                         full_object.getSample(),
-                        ['Sampler', 'LabManager', 'Manager'])
+                        ['Sampler', ])
                     username = self.member.getUserName()
                     users = [({
                         'ResultValue': u,
@@ -920,12 +977,12 @@ class AnalysisRequestsView(BikaListingView):
                     item['choices'] = {'getSampler': users}
                     Sampler = sampler and sampler or \
                         (username in samplers.keys() and username) or ''
-                    item['getSampler'] = Sampler
+                    sampler = Sampler
                 else:
-                    datesampled = ''
-                    sampler = ''
+                    datesampled = self.ulocalized_time(obj.getDateSampled, long_format=True)
+                    sampler = obj.getSamplerFullName if obj.getSampler else ''
         else:
-            datesampled = ''
+            datesampled = self.ulocalized_time(obj.getDateSampled, long_format=True)
             sampler = ''
         item['getDateSampled'] = datesampled
         item['getSampler'] = sampler
@@ -971,6 +1028,12 @@ class AnalysisRequestsView(BikaListingView):
                          "<img src='++resource++bika.lims.images/submitted-by-current-user.png' title='%s'/>" % \
                          t(_("Cannot verify: Submitted by current user"))
         return item
+
+    def pending_tasks(self):
+        task_queue = queryUtility(ITaskQueue, name='ar-create')
+        if task_queue is None:
+            return 0
+        return len(task_queue)
 
     @property
     def copy_to_new_allowed(self):
@@ -1073,3 +1136,14 @@ class AnalysisRequestsView(BikaListingView):
 
     def getDefaultAddCount(self):
         return self.context.bika_setup.getDefaultNumberOfARsToAdd()
+
+
+class QueuedAnalysisRequestsCount():
+
+    def __call__(self):
+        """Returns the number of tasks in the queue ar-create, responsible of
+        creating Analysis Requests asynchronously"""
+        CheckAuthenticator(self.request.form)
+        task_queue = queryUtility(ITaskQueue, name='ar-create')
+        count = len(task_queue) if task_queue is not None else 0
+        return json.dumps({'count': count})

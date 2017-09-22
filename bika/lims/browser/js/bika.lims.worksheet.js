@@ -43,7 +43,7 @@ function WorksheetAddAnalysesView() {
 
         // search form - selecting a category fills up the service selector
         $('[name="list_getCategoryTitle"]').live("change", function(){
-            val = $('[name="list_getCategoryTitle"]').val();
+            val = $('[name="list_getCategoryTitle"]').find(":selected").val();
             if(val == 'any'){
                 $('[name="list_Title"]').empty();
                 $('[name="list_Title"]').append("<option value='any'>"+_('Any')+"</option>");
@@ -53,7 +53,7 @@ function WorksheetAddAnalysesView() {
                 url: window.location.href.split("?")[0].replace("/add_analyses","") + "/getServices",
                 type: 'POST',
                 data: {'_authenticator': $('input[name="_authenticator"]').val(),
-                       'getCategoryTitle': val},
+                       'getCategoryUID': val},
                 dataType: "json",
                 success: function(data, textStatus, $XHR){
                     current_service_selection = $('[name="list_Title"]').val();
@@ -65,7 +65,9 @@ function WorksheetAddAnalysesView() {
                         } else {
                             selected = '';
                         }
-                        $('[name="list_Title"]').append("<option "+selected+"value='"+data[i]+"'>"+data[i]+"</option>");
+                        $('[name="list_Title"]').append(
+                            "<option "+selected+"value='"+data[i][0]+
+                            "'>"+data[i][1]+"</option>");
                     }
                 }
             });
@@ -76,48 +78,43 @@ function WorksheetAddAnalysesView() {
         $('.ws-analyses-search-button').live('click', function (event) {
             // in this context we already know there is only one bika-listing-form
             var form_id = "list";
-            var form = $("#list");
+            var form = $('form[id="'+form_id+'"]');
+            var params = {};
 
-            // request new table content by re-routing bika_listing_table form submit
-            $(form).append("<input type='hidden' name='table_only' value='" + form_id + "'>");
             // dropdowns are printed in ../templates/worksheet_add_analyses.pt
             // We add <formid>_<index>=<value>, which are checked in bika_listing.py
             var filter_indexes = ['getCategoryTitle', 'Title', 'getClientTitle'];
-            var i, fi;
-            for (i = 0; i < filter_indexes.length; i++) {
-                fi = form_id + "_" + filter_indexes[i];
-                var value = $("[name='" + fi + "']").val();
+            var field_set = $(this).parent('fieldset');
+            for (var i=0; i<filter_indexes.length; i++) {
+                var idx_name = filter_indexes[i];
+                var field_name = form_id+"_"+idx_name;
+                var element = $(field_set).find('[name="'+field_name+'"]');
+                var value = $(element).val();
                 if (value == undefined || value == null || value == 'any') {
-                    $("#list > [name='" + fi + "']").remove();
-                    $.query.REMOVE(fi);
+                    continue;
                 }
-                else {
-                    $(form).append("<input type='hidden' name='" + fi + "' value='" + value + "'>");
-                    $.query.SET(fi, value);
+                params[idx_name] = value;
+            }
+            // Add other fields required from bikalisting form
+            params['form_id'] = form_id;
+            params['table_only'] = form_id;
+            params['portal_type'] = 'Analysis';
+            params['submitted'] = '1';
+            var base_fields = ['_authenticator', 'view_url', 'list_sort_on', 'list_sort_order'];
+            for (var i=0; i<base_fields.length; i++) {
+                var field_name = base_fields[i];
+                var field = $(form).find('input[name="'+field_name+'"]');
+                var value = $(field).val();
+                if (value == undefined || value == null) {
+                    continue;
                 }
+                params[field_name] = value;
             }
 
-            var options = {
-                target: $('.bika-listing-table'),
-                replaceTarget: true,
-                data: form.formToArray(),
-                success: function () {
-                }
-            }
-            var url = window.location.href.split("?")[0].split("/add_analyses")[0];
-            url = url + "/add_analyses" + $.query.toString();
-            window.history.replaceState({}, window.document.title, url);
-
-            var stored_form_action = $(form).attr("action");
-            $(form).attr("action", window.location.href);
-            form.ajaxSubmit(options);
-
-            for (i = 0; i < filter_indexes.length; i++) {
-                fi = form_id + "_" + filter_indexes[i];
-                $("#list > [name='" + fi + "']").remove();
-            }
-            $(form).attr("action", stored_form_action);
-            $("[name='table_only']").remove();
+            $.post(window.location.href, params).done(function(data) {
+                $(form).find('.bika-listing-table-container').html(data);
+                window.bika.lims.BikaListingTableView.load();
+            });
 
             return false;
         });
