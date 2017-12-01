@@ -1037,14 +1037,14 @@
   <transition transition_id="attach" title="Attach" new_state="to_be_verified" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Add attachment</action>
     <guard>
-      <guard-expression>python:here.guard_attach_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('attach')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="no_sampling_workflow" title="No sampling workflow" new_state="sampled" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">No sampling workflow</action>
     <guard>
-      <guard-permission>BIKA: Add Analysis Request</guard-permission>
+      <guard-expression>python:here.guard_handler('no_sampling_workflow')</guard-expression>
     </guard>
   </transition>
 
@@ -1052,14 +1052,14 @@
     <action url="" category="workflow" icon="">Prepublish</action>
     <guard>
       <guard-permission>BIKA: Publish</guard-permission>
-      <guard-expression>python:here.guard_prepublish_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('prepublish')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="preserve" title="Preserve" new_state="sample_due" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Preserve</action>
     <guard>
-      <guard-permission>BIKA: Preserve Sample</guard-permission>
+      <guard-expression>python:here.guard_handler('preserve')</guard-expression>
     </guard>
   </transition>
 
@@ -1067,7 +1067,7 @@
     <action url="" category="workflow" icon="">Publish</action>
     <guard>
       <guard-permission>BIKA: Publish</guard-permission>
-      <guard-expression>python:here.guard_publish_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('publish')</guard-expression>
     </guard>
   </transition>
 
@@ -1075,7 +1075,7 @@
     <action url="" category="workflow" icon="">Receive sample</action>
     <guard>
       <guard-permission>BIKA: Receive Sample</guard-permission>
-      <guard-expression>python:here.guard_receive_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('receive')</guard-expression>
     </guard>
   </transition>
 
@@ -1083,14 +1083,14 @@
     <action url="" category="workflow" icon="">Republish</action>
     <guard>
       <guard-permission>BIKA: Publish</guard-permission>
-      <guard-expression>python:here.guard_cancelled_object()</guard-expression>
+      <guard-expression>python:here.guard_handler('republish')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="retract" title="Retract" new_state="sample_received" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Retract</action>
     <guard>
-      <guard-expression>python:here.guard_retract_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('retract')</guard-expression>
     </guard>
   </transition>
 
@@ -1098,7 +1098,7 @@
     <action url="" category="workflow" icon="">Invalidate</action>
     <guard>
       <guard-permission>BIKA: Retract</guard-permission>
-      <guard-expression>python:here.guard_cancelled_object()</guard-expression>
+      <guard-expression>python:here.guard_handler('retract_ar')</guard-expression>
     </guard>
   </transition>
 
@@ -1106,27 +1106,28 @@
     <action url="" category="workflow" icon="">Sample</action>
     <guard>
       <guard-permission>BIKA: Sample Sample</guard-permission>
-      <guard-expression>python:here.guard_sample_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('sample')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="sample_due" title="Sample due" new_state="sample_due" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Sample due</action>
     <guard>
+      <guard-expression>python:here.guard_handler('sample_due')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="sample_prep" title="Sample preparation" new_state="sample_prep" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Sample Preparation</action>
     <guard>
-      <guard-expression>python:here.guard_sample_prep_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('sample_prep')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="sample_prep_complete" title="Sample preparation complete" new_state="sample_received" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Sample Preparation Complete</action>
     <guard>
-      <guard-expression>python:here.guard_sample_prep_complete_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('sample_prep_complete')</guard-expression>
     </guard>
   </transition>
 
@@ -1134,6 +1135,7 @@
     <action url="" category="workflow" icon="">Sampling workflow</action>
     <guard>
       <guard-permission>BIKA: Add Analysis Request</guard-permission>
+      <guard-expression>python:here.guard_handler('sampling_workflow')</guard-expression>
     </guard>
   </transition>
 
@@ -1141,34 +1143,35 @@
     <action url="" category="workflow" icon="">Schedule sampling</action>
     <guard>
       <guard-permission>BIKA: Schedule Sampling</guard-permission>
-      <guard-expression>python:here.guard_schedule_sampling_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('schedule_sampling')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="submit" title="Submit" new_state="to_be_verified" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Submit for verification</action>
     <guard>
-      <guard-expression>python:here.guard_submit_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('submit')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="to_be_preserved" title="To be preserved" new_state="to_be_preserved" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">To be preserved</action>
     <guard>
+      <guard-expression>python:here.guard_handler('to_be_preserved')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="verify" title="Verify" new_state="verified" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Verify</action>
     <guard>
-      <guard-expression>python:here.guard_verify_transition()</guard-expression>
+      <guard-expression>python:here.guard_handler('verify')</guard-expression>
     </guard>
   </transition>
 
   <transition transition_id="reject" title="Reject" new_state="rejected" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Reject</action>
     <guard>
-      <guard-expression>python:here.bika_setup.isRejectionWorkflowEnabled()</guard-expression>
+      <guard-expression>python:here.guard_handler('reject')</guard-expression>
     </guard>
   </transition>
 
