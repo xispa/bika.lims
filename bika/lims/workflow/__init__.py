@@ -425,7 +425,7 @@ def isTransitionAllowed(instance, transition_id, active_only=True,
     :rtype: bool
     """
     if active_only and not isActive(instance):
-        inactive_transitions = ['reinstate, 'activate']
+        inactive_transitions = ['reinstate', 'activate']
         if transition_id not in inactive_transitions:
             # The instance is not active (its state is cancelled or inactive, and
             # the transition_id passed in does not belong to any of the cancellation
