@@ -56,6 +56,7 @@
                  $('div#semioverlay .semioverlay-panel').fadeOut();
                  reject_ar_sample();
              });
+             $('div#semioverlay .semioverlay-panel').hide();
          }
      }
 
@@ -104,8 +105,6 @@
             .replace('/analyses', '')
             .replace('/manage_results', '')
             .replace('/not_requested', '')
-            .replace('?check_edit=1', '')
-            .replace('?check_edit=0', '')
             .replace('/log', '');
          var obj_path = url.replace(window.portal_url, '');
          var redirect_state = $("a#workflow-transition-reject").attr('href');

@@ -1,38 +1,35 @@
 # -*- coding: utf-8 -*-
-from AccessControl import getSecurityManager
 # This file is part of Bika LIMS
 #
 # Copyright 2011-2016 by it's authors.
 # Some rights reserved. See LICENSE.txt, AUTHORS.txt.
 
 
-from AccessControl import ModuleSecurityInfo, allow_module
-
-import math
-from bika.lims import logger
-from bika.lims.browser import BrowserView
-from DateTime import DateTime
-from email import Encoders
-from email.MIMEBase import MIMEBase
-from plone.memoize import ram
-from plone.registry.interfaces import IRegistry
-from Products.Archetypes.public import DisplayList
-from Products.CMFCore.utils import getToolByName
-from Products.CMFPlone.utils import safe_unicode
-from socket import timeout
-from time import time
-from weasyprint import HTML, CSS
-from zope.component import queryUtility
-from zope.i18n import translate
-from zope.i18n.locales import locales
-
-import App
-import Globals
 import os
 import re
 import tempfile
 import types
 import urllib2
+from email import Encoders
+from time import time
+from AccessControl import ModuleSecurityInfo
+from AccessControl import allow_module
+from AccessControl import getSecurityManager
+from DateTime import DateTime
+from Products.Archetypes.public import DisplayList
+from Products.CMFCore.utils import getToolByName
+from Products.CMFPlone.utils import safe_unicode
+from bika.lims import api as api
+from bika.lims import logger
+from bika.lims.browser import BrowserView
+from email.MIMEBase import MIMEBase
+from plone.memoize import ram
+from plone.registry.interfaces import IRegistry
+from weasyprint import CSS, HTML
+from weasyprint import default_url_fetcher
+from zope.component import queryUtility
+from zope.i18n import translate
+from zope.i18n.locales import locales
 
 ModuleSecurityInfo('email.Utils').declarePublic('formataddr')
 allow_module('csv')
@@ -89,7 +86,7 @@ class js_err(BrowserView):
     def __call__(self, message):
         """Javascript sends a string for us to place into the error log
         """
-        self.logger.error(message);
+        self.logger.error(message)
 
 
 class js_warn(BrowserView):
@@ -116,6 +113,7 @@ def _cache_key_getUsers(method, context, roles=[], allow_empty=True):
     key = time() // (60 * 60), roles, allow_empty
     return key
 
+
 @ram.cache(_cache_key_getUsers)
 def getUsers(context, roles, allow_empty=True):
     """ Present a DisplayList containing users in the specified
@@ -132,6 +130,7 @@ def getUsers(context, roles, allow_empty=True):
         pairs.append((uid, fullname))
     pairs.sort(lambda x, y: cmp(x[1], y[1]))
     return DisplayList(pairs)
+
 
 
 def formatDateQuery(context, date_id):
@@ -313,6 +312,33 @@ def isnumber(s):
         return False
 
 
+def bika_url_fetcher(url):
+    """Basically the same as the default_url_fetcher from WeasyPrint,
+    but injects the __ac cookie to make an authenticated request to the resource.
+    """
+    from weasyprint import VERSION_STRING
+    from weasyprint.compat import Request
+    from weasyprint.compat import urlopen_contenttype
+
+    request = api.get_request()
+    __ac = request.cookies.get("__ac", "")
+
+    if request.get_header("HOST") in url:
+        result, mime_type, charset = urlopen_contenttype(
+            Request(url,
+                    headers={
+                        'Cookie': "__ac={}".format(__ac),
+                        'User-Agent': VERSION_STRING,
+                        'Authorization': request._auth,
+                    }))
+        return dict(file_obj=result,
+                    redirected_url=result.geturl(),
+                    mime_type=mime_type,
+                    encoding=charset)
+
+    return default_url_fetcher(url)
+
+
 def createPdf(htmlreport, outfile=None, css=None, images={}):
     """create a PDF from some HTML.
     htmlreport: rendered html
@@ -350,7 +376,7 @@ def createPdf(htmlreport, outfile=None, css=None, images={}):
 
     # render
     htmlreport = to_utf8(htmlreport)
-    renderer = HTML(string=htmlreport, encoding='utf-8')
+    renderer = HTML(string=htmlreport, url_fetcher=bika_url_fetcher, encoding='utf-8')
     pdf_fn = outfile if outfile else tempfile.mktemp(suffix=".pdf")
     if css:
         renderer.write_pdf(pdf_fn, stylesheets=[CSS(string=css_def)])
@@ -457,7 +483,7 @@ def format_supsub(text):
     insubsup = True
     for c in text:
         if c == '(':
-            if insubsup == False:
+            if insubsup is False:
                 out.append(c)
                 clauses.append(')')
             else:
@@ -482,7 +508,7 @@ def format_supsub(text):
             continue
 
         elif c == ' ':
-            if insubsup == True:
+            if insubsup is True:
                 out.append(subsup.pop())
             else:
                 out.append(c)
@@ -497,7 +523,7 @@ def format_supsub(text):
 
     while True:
         if len(subsup) == 0:
-            break;
+            break
         out.append(subsup.pop())
 
     return ''.join(out)
@@ -609,3 +635,72 @@ def copy_field_values(src, dst, ignore_fieldnames=None, ignore_fieldtypes=None):
         value = field.get(src)
         if value:
             dst_schema[fieldname].set(dst, value)
+
+
+def get_link(href, value=None, **kwargs):
+    """
+    Returns a well-formed link. If href is None/empty, returns an empty string
+    :param href: value to be set for attribute href
+    :param value: the text to be displayed. If None, the href itself is used
+    :param kwargs: additional attributes and values
+    :return: a well-formed html anchor
+    """
+    if not href:
+        return ""
+    anchor_value = value and value or href
+    attr = list()
+    if kwargs:
+        attr = ['{}="{}"'.format(key, val) for key, val in kwargs.items()]
+    attr = " ".join(attr)
+    return '<a href="{}" {}>{}</a>'.format(href, attr, anchor_value)
+
+
+def get_email_link(email, value=None):
+    """
+    Returns a well-formed link to an email address. If email is None/empty,
+    returns an empty string
+    :param email: email address
+    :param link_text: text to be displayed. If None, the email itself is used
+    :return: a well-formatted html anchor
+    """
+    if not email:
+        return ""
+    mailto = 'mailto:{}'.format(email)
+    link_value = value and value or email
+    return get_link(mailto, link_value)
+
+def get_registry_value(key, default=None):
+    """
+    Gets the utility for IRegistry and returns the value for the key passed in.
+    If there is no value for the key passed in, returns default value
+    :param key: the key in the registry to look for
+    :param default: default value if the key is not registered
+    :return: value in the registry for the key passed in
+    """
+    registry = queryUtility(IRegistry)
+    return registry.get(key, default)
+
+def check_permission(permission, obj):
+    """
+    Returns if the current user has rights for the permission passed in against
+    the obj passed in
+    :param permission: name of the permission
+    :param obj: the object to check the permission against for the current user
+    :return: 1 if the user has rights for this permission for the passed in obj
+    """
+    mtool = api.get_tool('portal_membership')
+    object = api.get_object(obj)
+    return mtool.checkPermission(permission, object)
+
+def to_int(value, default=0):
+    """
+    Tries to convert the value passed in as an int. If no success, returns the
+    default value passed in
+    :param value: the string to convert to integer
+    :param default: the default fallback
+    :return: int representation of the value passed in
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return to_int(default, default=0)

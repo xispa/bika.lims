@@ -47,6 +47,24 @@ def after_no_sampling_workflow(sample):
     """
     _cascade_transition(sample, 'no_sampling_workflow')
 
+    if obj.getSamplingWorkflowEnabled():
+        to_be_preserved = []
+        sample_due = []
+        lowest_state = 'sample_due'
+        for p in obj.objectValues('SamplePartition'):
+            if p.getPreservation():
+                lowest_state = 'to_be_preserved'
+                to_be_preserved.append(p)
+            else:
+                sample_due.append(p)
+        for p in to_be_preserved:
+            doActionFor(p, 'to_be_preserved')
+        for p in sample_due:
+            doActionFor(p, 'sample_due')
+        doActionFor(obj, lowest_state)
+    else:
+        doActionFor(obj, 'sample_due')
+
 
 def after_sampling_workflow(sample):
     """Method triggered after a 'sampling_workflow' transition for the Sample
@@ -126,6 +144,8 @@ def after_sample(sample):
     :type sample: Sample
     """
     _cascade_transition(sample, 'sample')
+    else:
+        doActionFor(obj, 'sample_due')
 
 
 def after_sample_due(sample):

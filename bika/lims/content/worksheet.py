@@ -480,7 +480,7 @@ class Worksheet(BaseFolder, HistoryAwareMixin):
                 # instrument or method is not allowed
                 continue
 
-            ar_id = brain.getRequestID
+            ar_id = brain.id
             if ar_id in ar_analyses:
                 ar_analyses[ar_id].append(analysis)
             else:

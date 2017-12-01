@@ -49,15 +49,6 @@ AnalysisService = UIDReferenceField(
     'AnalysisService'
 )
 
-# Overrides the AbstractBaseAnalysis. Analyses have a versioned link to the
-# calculation as it was when created.
-Calculation = HistoryAwareReferenceField(
-    'Calculation',
-    allowed_types=('Calculation',),
-    relationship='AnalysisCalculation',
-    referenceClass=HoldingReference
-)
-
 # Attachments which are added manually in the UI, or automatically when
 # results are imported from a file supplied by an instrument.
 Attachment = UIDReferenceField(
@@ -142,8 +133,6 @@ schema = schema.copy() + Schema((
     AnalysisService,
     Analyst,
     Attachment,
-    # Calculation overrides AbstractBaseClass
-    Calculation,
     DateAnalysisPublished,
     DetectionLimitOperand,
     # NumberOfRequiredVerifications overrides AbstractBaseClass
@@ -190,29 +179,38 @@ class AbstractAnalysis(AbstractBaseAnalysis):
             self.setVerificators(username)
         else:
             self.setVerificators(verificators + "," + username)
+        self.reindexObject()
 
     @security.public
     def deleteLastVerificator(self):
-        verificators = self.getVerificators().split(',')
+        verificators_str = self.getVerificators()
+        if not verificators_str:
+            return
+        verificators = verificators_str.split(',')
         del verificators[-1]
         self.setVerificators(",".join(verificators))
+        self.reindexObject()
 
     @security.public
     def wasVerifiedByUser(self, username):
-        verificators = self.getVerificators().split(',')
+        verificators_str = self.getVerificators()
+        if not verificators_str:
+            return False
+        verificators = verificators_str.split(',')
         return username in verificators
 
     @security.public
     def getLastVerificator(self):
-        return self.getVerificators().split(',')[-1]
+        verificators = self.getVerificators()
+        if not verificators:
+            return None
+        return verificators.split(',')[-1]
 
-    @deprecated('[1705] Use Title() instead.')
     @security.public
-    def getServiceTitle(self):
-        """Returns the Title of the associated service. Analysis titles are
-        always the same as the title of the service from which they are derived.
-        """
-        return self.Title()
+    def setVerificator(self, value):
+        field = self.Schema().getField('Verificators')
+        field.set(self, value)
+        self.reindexObject()
 
     @security.public
     def getDefaultUncertainty(self, result=None):
@@ -413,8 +411,12 @@ class AbstractAnalysis(AbstractBaseAnalysis):
         raise NotImplementedError("getDependents is not implemented.")
 
     @security.public
-    def getDependencies(self):
-        """Return a list of analyses who we depend on to calculate our result.
+    def getDependencies(self, retracted=False):
+        """Return a list of siblings who we depend on to calculate our result.
+        :param retracted: If false retracted/rejected analyses are dismissed
+        :type retracted: bool
+        :return: Analyses the current analysis depends on
+        :rtype: list of IAnalysis
         """
         raise NotImplementedError("getDependencies is not implemented.")
 
@@ -560,14 +562,17 @@ class AbstractAnalysis(AbstractBaseAnalysis):
                             'math': math,
                             'context': self},
                            {'mapping': mapping})
-            result = eval(formula)
+            result = eval(formula, calc._getGlobals())
         except TypeError:
             self.setResult("NA")
             return True
         except ZeroDivisionError:
             self.setResult('0/0')
             return True
-        except KeyError:
+        except KeyError as e:
+            self.setResult("NA")
+            return True
+        except ImportError as e:
             self.setResult("NA")
             return True
 
@@ -957,14 +962,27 @@ class AbstractAnalysis(AbstractBaseAnalysis):
         - If neither Manual Uncertainty nor Calculate Precision from
           Uncertainty are set, returns the precision from the Analysis Service
 
+        - If you have a number with zero uncertainty: If you roll a pair of
+        dice and observe five spots, the number of spots is 5. This is a raw
+        data point, with no uncertainty whatsoever. So just write down the
+        number. Similarly, the number of centimeters per inch is 2.54,
+        by definition, with no uncertainty whatsoever. Again: just write
+        down the number.
+
         Further information at AbstractBaseAnalysis.getPrecision()
         """
         allow_manual = self.getAllowManualUncertainty()
         precision_unc = self.getPrecisionFromUncertainty()
         if allow_manual or precision_unc:
             uncertainty = self.getUncertainty(result)
+            if uncertainty is None:
+                return self.getField('Precision').get(self)
+            if uncertainty == 0 and result is None:
+                return self.getField('Precision').get(self)
             if uncertainty == 0:
-                return 1
+                strres = str(result)
+                numdecimals = strres[::-1].find('.')
+                return numdecimals
             return get_significant_digits(uncertainty)
         return self.getField('Precision').get(self)
 
@@ -1209,12 +1227,6 @@ class AbstractAnalysis(AbstractBaseAnalysis):
         :rtype: bool
         """
         return self.isInstrumentValid()
-
-    @deprecated('[1705] Orphan. Use getAttachmentUIDs')
-    @security.public
-    def hasAttachment(self):
-        attachments = self.getAttachmentUIDs()
-        return len(attachments) > 0
 
     @security.public
     def getAttachmentUIDs(self):

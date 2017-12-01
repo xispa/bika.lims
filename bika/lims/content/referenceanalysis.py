@@ -110,10 +110,7 @@ class ReferenceAnalysis(AbstractAnalysis):
         It is used as a metacolumn.
         Returns the default service's instrument UID
         """
-        service = self.getService()
-        if not service:
-            return None
-        ins = service.getInstrument()
+        ins = self.getInstrument()
         if ins:
             return ins.UID()
         return ''
@@ -123,10 +120,7 @@ class ReferenceAnalysis(AbstractAnalysis):
         It is used as a metacolumn.
         Returns the default service's instrument UID
         """
-        service = self.getService()
-        if not service:
-            return None
-        ins = service.getInstrument()
+        ins = self.getInstrument()
         if ins:
             return ins.Title()
         return ''
@@ -136,20 +130,41 @@ class ReferenceAnalysis(AbstractAnalysis):
         It is used as a metacolumn.
         Returns the default service's instrument UID
         """
-        service = self.getService()
-        if not service:
-            return None
-        ins = service.getInstrument()
+        ins = self.getInstrument()
         if ins:
             return ins.absolute_url_path()
         return ''
 
-    def getDependencies(self):
+    def getDependencies(self, retracted=False):
         """It doesn't make sense for a ReferenceAnalysis to use
         dependencies, since them are only used in calculations for
         routine analyses
         """
         return []
+
+    @deprecated("[1710] Reference Analyses do not support Interims")
+    def setInterimFields(self, interims=None , **kwargs):
+        pass
+
+    @deprecated("[1710] Reference Analyses do not support Interims")
+    def getInterimFields(self):
+        return []
+
+    @deprecated("[1710] Reference Analyses do not support Calculations")
+    def setCalculation(self, calculation=None, **kwargs):
+        pass
+
+    @deprecated("[1710] Reference Analyses do not support Calculations")
+    def getCalculation(self):
+        return None
+
+    @deprecated("[1710] Reference Analyses do not support Calculations")
+    def getCalculationTitle(self):
+        return None
+
+    @deprecated("[1710] Reference Analyses do not support Calculations")
+    def getCalculationUID(self):
+        return None
 
 
 registerType(ReferenceAnalysis, PROJECTNAME)

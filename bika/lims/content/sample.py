@@ -10,6 +10,8 @@ import sys
 from AccessControl import ClassSecurityInfo
 from Products.ATContentTypes.lib.historyaware import HistoryAwareMixin
 from Products.ATContentTypes.utils import DT2dt, dt2DT
+from bika.lims.api import get_object_by_uid
+from bika.lims.browser.fields.uidreferencefield import get_backreferences
 from Products.ATExtensions.field import RecordsField
 from Products.Archetypes import atapi
 from Products.Archetypes.config import REFERENCE_CATALOG
@@ -298,7 +300,7 @@ schema = BikaSchema.copy() + Schema((
         read_permission=permissions.View,
         write_permission=permissions.ModifyPortalContent,
         widget = DateTimeWidget(
-            label=_("Sampling Date"),
+            label=_("Expected Sampling Date"),
             description=_("Define when the sampler has to take the samples"),
             show_time=True,
             visible={'edit': 'visible',
@@ -467,10 +469,11 @@ schema = BikaSchema.copy() + Schema((
         ),
     ),
     ComputedField('SampleTypeUID',
-        expression = 'context.getSampleType().UID()',
-        widget = ComputedWidget(
-            visible=False,
-        ),
+                  expression='context.getSampleType() and \
+                             context.getSampleType().UID() or None',
+                  widget=ComputedWidget(
+                    visible=False,
+                  ),
     ),
     ComputedField('SamplePointUID',
         expression = 'context.getSamplePoint() and context.getSamplePoint().UID() or None',
@@ -775,15 +778,8 @@ class Sample(BaseFolder, HistoryAwareMixin):
     security.declarePublic('getAnalysisRequests')
 
     def getAnalysisRequests(self):
-        tool = getToolByName(self, REFERENCE_CATALOG)
-        ar = ''
-        ars = []
-        uids = [uid for uid in
-                tool.getBackReferences(self, 'AnalysisRequestSample')]
-        for uid in uids:
-            reference = uid
-            ar = tool.lookupObject(reference.sourceUID)
-            ars.append(ar)
+        backrefs = get_backreferences(self, 'AnalysisRequestSample')
+        ars = map(get_object_by_uid, backrefs)
         return ars
 
     security.declarePublic('getAnalyses')
@@ -850,10 +846,5 @@ class Sample(BaseFolder, HistoryAwareMixin):
         partitions = self.objectValues('SamplePartition')
         return partitions
 
-    def getSamplePartitions(self):
-        """Returns the Sample Partitions associated to this Sample
-        """
-        partitions = self.objectValues('SamplePartition')
-        return partitions
 
 atapi.registerType(Sample, PROJECTNAME)

@@ -166,6 +166,8 @@ def after_reject(analysis_request):
         doActionFor(analysis, 'reject')
 
     if analysis_request.bika_setup.getNotifyOnRejection():
+        # Import here to brake circular importing somewhere
+        from bika.lims.utils.analysisrequest import notify_rejection
         # Notify the Client about the Rejection.
         from bika.lims.utils.analysisrequest import notify_rejection
         notify_rejection(analysis_request)
