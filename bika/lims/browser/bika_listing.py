@@ -25,10 +25,11 @@ from bika.lims.api import get_tool, get_object_by_uid, get_current_user, \
 from bika.lims.browser import BrowserView
 from bika.lims.interfaces import IFieldIcons
 from bika.lims.utils import getFromString
-from bika.lims.utils import getHiddenAttributesForClass, isActive
+from bika.lims.utils import getHiddenAttributesForClass
 from bika.lims.utils import t
 from bika.lims.utils import to_utf8
 from bika.lims.workflow import doActionFor
+from bika.lims.workflow import isActive
 from bika.lims.workflow import skip
 from plone.app.content.browser import tableview
 from zope.component import getAdapters, getMultiAdapter
