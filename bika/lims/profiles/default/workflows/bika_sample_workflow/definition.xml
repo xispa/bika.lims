@@ -73,7 +73,6 @@
   </state>
 
   <state state_id="sample_due" title="Sample due" i18n:attributes="title">
-    <exit-transition transition_id="preserve" />
     <exit-transition transition_id="receive" />
     <exit-transition transition_id="reject" />
     <permission-map name="BIKA: Cancel and reinstate" acquired="False">
