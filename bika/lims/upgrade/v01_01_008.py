@@ -1,5 +1,4 @@
 from bika.lims import logger
-from bika.lims.catalog import CATALOG_ANALYSIS_REQUEST_LISTING
 from bika.lims.config import PROJECTNAME as product
 from bika.lims.upgrade import upgradestep
 from bika.lims.upgrade.utils import UpgradeUtils
@@ -22,6 +21,12 @@ def upgrade(tool):
 
     # -------- ADD YOUR STUFF HERE --------
 
+    from workflow_refactoring import fix_workflows
+    fix_workflows(portal)
+
+
+
     logger.info("{0} upgraded to version {1}".format(product, version))
 
     return True
+
