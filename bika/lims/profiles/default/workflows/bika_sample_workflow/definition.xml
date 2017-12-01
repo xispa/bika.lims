@@ -500,6 +500,7 @@
   <transition transition_id="sample_due" title="Sample due" new_state="sample_due" trigger="USER" before_script="" after_script="" i18n:attributes="title">
     <action url="" category="workflow" icon="">Sample due</action>
     <guard>
+      <guard-expression>python:here.guard_handler('sample_due')</guard-expression>
     </guard>
   </transition>
 
@@ -521,7 +522,7 @@
     <action url="" category="workflow" icon="">Sampling workflow</action>
     <guard>
       <guard-permission>BIKA: Add Sample</guard-permission>
-      <guard-expression>python:here.guard_handler('to_be_sampled')</guard-expression>
+      <guard-expression>python:here.guard_handler('sampling_workflow')</guard-expression>
     </guard>
   </transition>
 
