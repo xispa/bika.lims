@@ -204,24 +204,23 @@ def guard_reject(analysis_request):
 
 
 def guard_expire(analysis_request):
-    """Returns true if the 'expire'' transition can be performed to the
-    analysis request passed in.
-
-    Returns True if the transition can be performed to the Sample associated to
-    the analysis request passed in or the Sample has already been transitioned.
-
+    """Returns true if the 'expire' transition can be performed to the
+    analysis request passed in. This is, the analysis request passed in is in
+    an active state and the transition 'expire` has been performed to the Sample
+    the Analysis Request belongs to.
     :param analysis_request: Request the transition has to be evaluated against
     :type analysis_request: AnalysisRequest
     :returns: True or False
     :rtype: bool
     """
+    if not isBasicTransitionAllowed(analysis_request):
+        return False
+
     sample = analysis_request.getSample()
-    if sample:
-        return isTransitionAllowed(instance=analysis_request,
-                                   transition_id='expire',
-                                   dependencies=[sample],
-                                   target_statuses=['expired'],
-                                   check_action=False)
+    if not sample:
+        return False
+
+    return wasTransitionPerformed(sample, 'expire')
 
 
 def guard_dispose(analysis_request):
