@@ -404,6 +404,7 @@
     </permission-map>
     <permission-map name="BIKA: Schedule Sampling" acquired="False">
       <permission-role>Manager</permission-role>
+      <permission-role>LabManager</permission-role>
       <permission-role>SamplingCoordinator</permission-role>
     </permission-map>
     <permission-map name="Modify portal content" acquired="False">

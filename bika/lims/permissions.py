@@ -235,7 +235,7 @@ def setup_permissions(portal):
     mp(CancelAndReinstate, ['Manager', 'LabManager'], 0)
     mp(ViewRetractedAnalyses, ['Manager', 'LabManager', 'LabClerk', 'Analyst', ], 0)
 
-    mp(ScheduleSampling, ['Manager', 'SamplingCoordinator'], 0)
+    mp(ScheduleSampling, ['Manager', 'LabManager', 'SamplingCoordinator'], 0)
     mp(SampleSample, ['Manager', 'LabManager', 'Sampler', 'SamplingCoordinator'], 0)
     mp(PreserveSample, ['Manager', 'LabManager', 'Preserver'], 0)
     mp(ReceiveSample, ['Manager', 'LabManager', 'LabClerk', 'Sampler', 'SamplingCoordinator'], 1)

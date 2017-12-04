@@ -1,6 +1,8 @@
 from bika.lims import logger
 from bika.lims import api
 from Products.CMFCore.Expression import Expression
+from bika.lims.permissions import ScheduleSampling
+
 
 def fix_workflows(portal):
     # Rename all guard expressions to python:here.guard_handler('<action_id>')
@@ -11,6 +13,11 @@ def fix_workflows(portal):
 
     # Removes states that are no longer used
     remove_stale_states(portal)
+
+    # Fix missing or bad permissions
+    # LabManager must have permission for scheduling samples
+    mp = portal.manage_permission
+    mp(ScheduleSampling, ['Manager', 'LabManager', 'SamplingCoordinator'], 0)
 
 
 def set_guard_expressions(portal):
@@ -93,9 +100,13 @@ def remove_stale_states(portal):
             transition = transitions[transid]
             if transition.new_state_id in wf_states:
                 trans_to_remove.append(transid)
+
         # Remove the transitions
         for trans_remove in trans_to_remove:
             workflow.transitions.deleteTransitions([trans_remove])
 
         # Now, remove the states
         workflow.states.deleteStates(wf_states)
+
+    # TODO Walkthtough analyses objects with 'rejected' state and set the status
+    # unassigned and remove them from any Worksheet
