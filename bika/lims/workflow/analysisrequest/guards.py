@@ -395,33 +395,41 @@ def guard_publish(obj):
     """
     return isBasicTransitionAllowed(obj)
 
-def guard_submit(obj):
-    """Returns true if the Analysis Request can be submitted for verification.
+def guard_submit(analysis_request):
+    """
+    Returns true if the Analysis Request can be submitted for verification.
     An Analysis Request can only be submitted for verification if it has been
     received and there is at least one Analysis that hasn't been submitted yet.
-    Or if the Analysis Request is made only of one
-    Analysis that must be performed outside of the lab (Field Analysis), in
-    which case, the user will be able to submit the Analysis Request when its
-    state is sampled or sample_due.
+    Or if the Analysis Request is made only of one Analysis that must be
+    performed outside of the lab (Field Analysis), in which case, the user will
+    be able to submit the Analysis Request when its state is sampled or
+    sample_due.
+    :param analysis_request: The analysis request that needs to be evaluated
+    :type analysis_request: IAnalysisRequest
+    :return: True if the Analysis Request passed in can be submitted
+    :rtype: bool
     """
-    if isBasicTransitionAllowed(obj) is False:
+    if isBasicTransitionAllowed(analysis_request) is False:
         return False
 
-    state = getCurrentState(obj)
+    state = getCurrentState(analysis_request)
     if state == STATE_SAMPLE_RECEIVED:
         # Is there at least one analysis that still needs to be submitted?
-        analyses = obj.getAnalyses()
-        for an in analyses:
-            if wasTransitionPerformed('submit') is False:
+        analyses = analysis_request.getAnalyses()
+        for analysis in analyses:
+            if not wasTransitionPerformed(analysis, 'submit'):
                 return True
+        # All analyses have been submitted
+        return False
 
-    elif state == STATE_SAMPLE_DUE:
+    if state == STATE_SAMPLE_DUE:
         # Maybe this analysis request contains field analyses only?
-        analyses = obj.getAnalyses()
+        analyses = analysis_request.getAnalyses()
         for an in analyses:
             obj = an.getObject()
             if obj.getPointOfCapture() != 'field':
                 return False
+        # This AR only contains analyses that need to be set on field.
         return len(analyses) > 0
 
     return False
