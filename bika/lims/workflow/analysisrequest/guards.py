@@ -4,6 +4,8 @@ from bika.lims.workflow import isActive
 from bika.lims.workflow import isBasicTransitionAllowed
 from bika.lims.workflow import isTransitionAllowed
 from bika.lims.workflow import wasTransitionPerformed
+from bika.lims.workflow.analysisrequest import STATE_SAMPLE_RECEIVED, \
+    STATE_SAMPLE_DUE
 
 
 def guard_no_sampling_workflow(analysis_request):
@@ -391,3 +393,35 @@ def guard_publish(obj):
     :returns: true or false
     """
     return isBasicTransitionAllowed(obj)
+
+def guard_submit(obj):
+    """Returns true if the Analysis Request can be submitted for verification.
+    An Analysis Request can only be submitted for verification if it has been
+    received and there is at least one Analysis that hasn't been submitted yet.
+    Or if the Analysis Request is made only of one
+    Analysis that must be performed outside of the lab (Field Analysis), in
+    which case, the user will be able to submit the Analysis Request when its
+    state is sampled or sample_due.
+    """
+    if isBasicTransitionAllowed(obj) is False:
+        return False
+
+    state = getCurrentState(obj)
+    if state == STATE_SAMPLE_RECEIVED:
+        # Is there at least one analysis that still needs to be submitted?
+        analyses = obj.getAnalyses()
+        for an in analyses:
+            if wasTransitionPerformed('submit') is False:
+                return True
+
+    elif state == STATE_SAMPLE_DUE:
+        # Maybe this analysis request contains field analyses only?
+        analyses = obj.getAnalyses()
+        for an in analyses:
+            obj = an.getObject()
+            if obj.getPointOfCapture() != 'field':
+                return False
+        return len(analyses) > 0
+
+    return False
+
