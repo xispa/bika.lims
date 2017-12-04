@@ -5,16 +5,14 @@ from bika.lims.workflow import getCurrentState
 
 
 def _promote_transition(analysis_request, transition_id):
-    """Promotes the transition passed in to the parent of the Sample passed in.
-    If the Analysis Request passed in has no Sample assigned, does nothing.
-
+    """Promotes the transition passed in to the Sample Partitions assigned to
+    the Analysis Request passed in.
     :param analysis_request: Analysis Request that promotes the transition
     :param transition_id: Unique id of the transition
     """
-    sample = analysis_request.getSample()
-    if sample:
-        doActionFor(sample, transition_id)
-
+    partitions = analysis_request.getPartitions()
+    for partition in partitions:
+        doActionFor(partition, transition_id)
 
 def after_no_sampling_workflow(analysis_request):
     """Method triggered after a 'sampling_workflow' transition for the
