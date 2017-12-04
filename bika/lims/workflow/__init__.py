@@ -487,8 +487,11 @@ def getAllowedTransitions(instance):
     :returns: A list of transition/action ids
     :rtype: list
     """
-    wftool = getToolByName(instance, "portal_workflow")
-    transitions = wftool.getTransitionsFor(instance)
+    if not api.is_object(instance):
+        return []
+    object = api.get_object(instance)
+    wftool = getToolByName(object, "portal_workflow")
+    transitions = wftool.getTransitionsFor(object)
     return [trans['id'] for trans in transitions]
 
 
