@@ -58,11 +58,19 @@ def guard_submit(obj):
 
 
 def guard_sample(obj):
-    """ Returns true if the sample transition can be performed for the sample
-    passed in.
+    """ Returns true if the sample transition can be performed for the analysis
+    passed in. This is, the object passed in is active and the associated Sample
+    Partition was already transitioned.
     :returns: true or false
     """
-    return isBasicTransitionAllowed(obj)
+    if isBasicTransitionAllowed(obj) is False:
+        return False
+
+    partition = obj.getSamplePartition()
+    if wasTransitionPerformed(partition, 'sample'):
+        return True
+
+    return False
 
 
 def guard_to_be_preserved(obj):
