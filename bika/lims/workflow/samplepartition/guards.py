@@ -117,11 +117,13 @@ def guard_schedule_sampling(partition):
         return False
 
     sample = partition.getSample()
-    if sample:
-        sampler = sample.getScheduledSamplingSampler()
-        sampling_date = sample.getSamplingDate()
-        if sampler and sampling_date:
-            return isBasicTransitionAllowed(partition)
+    if not sample:
+        return False
+
+    sampler = sample.getScheduledSamplingSampler()
+    sampling_date = sample.getSamplingDate()
+    if sampler and sampling_date:
+        return isBasicTransitionAllowed(partition)
 
     return False
 

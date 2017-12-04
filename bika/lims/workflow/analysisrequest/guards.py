@@ -106,13 +106,14 @@ def guard_schedule_sampling(analysis_request):
     :returns: True or False
     :rtype: bool
     """
+    if not isBasicTransitionAllowed(analysis_request):
+        return False
+
     sample = analysis_request.getSample()
-    if sample:
-        return isTransitionAllowed(instance=analysis_request,
-                                   transition_id='schedule_sampling',
-                                   dependencies=[sample],
-                                   target_statuses=['scheduled_sampling'],
-                                   check_action=False)
+    if not sample:
+        return False
+
+    return isTransitionAllowed(sample, 'schedule_sampling')
 
 
 def guard_sample(analysis_request):
