@@ -11,7 +11,7 @@ from zope.interface import implementer
 from zope.interface import implements
 
 from DateTime import DateTime
-from bika.lims import PMF
+from bika.lims import PMF, api
 from bika.lims import enum
 from bika.lims import logger
 from bika.lims.browser import ulocalized_time
@@ -586,8 +586,12 @@ def getCurrentState(obj, stateflowid='review_state'):
     :returns: the state of the passed in object for the passed in state flow id
     :rtype: string
     """
-    wf = getToolByName(obj, 'portal_workflow')
-    return wf.getInfoFor(obj, stateflowid, '')
+    if not api.is_object(obj):
+        return None
+
+    instance = api.get_object(obj)
+    wf = getToolByName(instance, 'portal_workflow')
+    return wf.getInfoFor(instance, stateflowid, '')
 
 def in_state(obj, states, stateflowid='review_state'):
     """ Returns if the object passed matches with the states passed in
