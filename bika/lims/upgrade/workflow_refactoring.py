@@ -1,10 +1,6 @@
 from bika.lims import logger
 from bika.lims import api
 from Products.CMFCore.Expression import Expression
-from bika.lims.catalog import CATALOG_ANALYSIS_REQUEST_LISTING
-from bika.lims.config import PROJECTNAME as product
-from bika.lims.upgrade import upgradestep
-from bika.lims.upgrade.utils import UpgradeUtils
 
 def fix_workflows(portal):
     # Rename all guard expressions to python:here.guard_handler('<action_id>')
@@ -12,6 +8,9 @@ def fix_workflows(portal):
 
     # Fix workflow transitions
     fix_workflow_transitions(portal)
+
+    # Removes states that are no longer used
+    remove_stale_states(portal)
 
 
 def set_guard_expressions(portal):
@@ -76,3 +75,27 @@ def fix_workflow_transitions(portal):
             msg = "Transitions for {0}.{1} set to: {2}"
             workflow.states[wfstatid].transitions = transitions
             logger.info(msg.format(wfid, wfstatid, ','.join(transitions)))
+
+def remove_stale_states(portal):
+    """Removes states from different workflows that are no longer used. It also
+    removes the 'exit-transitions' from each state that points to the target
+    state"""
+    states = {
+        'bika_analysis_workflow': ['rejected', ],
+    }
+    wtool = api.get_tool('portal_workflow')
+    for wf_id, wf_states in states.items():
+        # Look for the transition for which the end-state is wf_state
+        trans_to_remove = list()
+        workflow = wtool.getWorkflowById(wf_id)
+        transitions = workflow.transitions
+        for transid in transitions.objectIds():
+            transition = transitions[transid]
+            if transition.new_state_id in wf_states:
+                trans_to_remove.append(transid)
+        # Remove the transitions
+        for trans_remove in trans_to_remove:
+            workflow.transitions.deleteTransitions([trans_remove])
+
+        # Now, remove the states
+        workflow.states.deleteStates(wf_states)
