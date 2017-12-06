@@ -69,6 +69,7 @@ def doActionFor(instance, action_id, active_only=True, allowed_transition=True):
     :param action_id: transition id
     :param active_only: True if transition must apply to active objects
     :param allowed_transition: True for a allowed transition check
+    :type instance: ATContentType/DexterityContentType/BrainCatalog
     :returns: true if the transition has been performed and message
     :rtype: list
     """
@@ -87,8 +88,15 @@ def doActionFor(instance, action_id, active_only=True, allowed_transition=True):
     if not instance:
         return actionperformed, message
 
-    workflow = getToolByName(instance, "portal_workflow")
-    skipaction = skip(instance, action_id, peek=True)
+    # Be sure we get the object
+    if not api.is_object(instance):
+        message = "Not allowed type"
+        logger.error(message)
+        return actionperformed, message
+
+    obj = api.get_object(instance)
+    workflow = getToolByName(obj, "portal_workflow")
+    skipaction = skip(obj, action_id, peek=True)
     if skipaction:
         #clazzname = instance.__class__.__name__
         #msg = "Skipping transition '{0}': {1} '{2}'".format(action_id,
@@ -98,26 +106,26 @@ def doActionFor(instance, action_id, active_only=True, allowed_transition=True):
         return actionperformed, message
 
     if allowed_transition:
-        allowed = isTransitionAllowed(instance, action_id, active_only)
+        allowed = isTransitionAllowed(obj, action_id, active_only)
         if not allowed:
-            transitions = workflow.getTransitionsFor(instance)
+            transitions = workflow.getTransitionsFor(obj)
             transitions = [trans['id'] for trans in transitions]
             transitions = ', '.join(transitions)
-            currstate = getCurrentState(instance)
-            clazzname = instance.__class__.__name__
+            currstate = getCurrentState(obj)
+            clazzname = obj.__class__.__name__
             msg = "Transition '{0}' not allowed: {1} '{2}' ({3}). " \
                   "Available transitions: {4}".format(action_id, clazzname,
-                                                      instance.getId(),
+                                                      obj.getId(),
                                                       currstate, transitions)
             logger.warning(msg)
-            _logTransitionFailure(instance, action_id)
+            _logTransitionFailure(obj, action_id)
             return actionperformed, message
     else:
         logger.warning(
             "doActionFor should never (ever) be called with allowed_transition"
             "set to False as it avoids permission checks.")
     try:
-        workflow.doActionFor(instance, action_id)
+        workflow.doActionFor(obj, action_id)
         actionperformed = True
     except WorkflowException as e:
         message = str(e)
