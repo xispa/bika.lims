@@ -161,25 +161,27 @@ def guard_sample_due(analysis_request):
 
 
 def guard_receive(analysis_request):
-    """Returns true if the 'receive' transition can be performed to the
-    analysis request passed in.
-
+    """
+    Returns true if the "receive" transition can be performed to the Analysis
+    Request passed in.
     Returns True if the transition can be performed to the Sample associated to
-    the analysis request passed in or the Sample has already been transitioned.
-
-    :param analysis_request: Request the transition has to be evaluated against
-    :type analysis_request: AnalysisRequest
-    :returns: True or False
+    the Analysis Request passed in or the Sample has already been transitioned.
+    :param analysis_request: request the transition has to be evaluated against
+    :type analysis_request: IAnalysisRequest
+    :return: True if the Analysis Request passed in can be received
     :rtype: bool
     """
+    if not isBasicTransitionAllowed(analysis_request):
+        return False
+
     sample = analysis_request.getSample()
-    if sample:
-        return isTransitionAllowed(instance=analysis_request,
-                                   transition_id='receive',
-                                   dependencies=[sample],
-                                   target_statuses=['sample_received'],
-                                   check_history=True,
-                                   check_action=False)
+    if not sample:
+        return False
+
+    if isTransitionAllowed(sample, 'receive'):
+        return True
+
+    return wasTransitionPerformed(sample, 'receive')
 
 
 def guard_reject(analysis_request):
@@ -394,6 +396,7 @@ def guard_publish(obj):
     """
     return isBasicTransitionAllowed(obj)
 
+
 def guard_submit(analysis_request):
     """
     Returns true if the Analysis Request can be submitted for verification.
@@ -414,4 +417,3 @@ def guard_submit(analysis_request):
             return False
 
     return len(analyses) > 0
-
