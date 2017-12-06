@@ -1,5 +1,6 @@
 # coding=utf-8
 from DateTime import DateTime
+from bika.lims import api
 from bika.lims.workflow import doActionFor
 from bika.lims.workflow import getCurrentState
 
@@ -113,19 +114,14 @@ def after_sample_due(analysis_request):
 
 
 def after_receive(analysis_request):
-    """Method triggered after a 'preserve' transition for the Analysis Request
-    passed in is performed.
-
-    Stores the value for "Date Received" field and also tries to perform the
-    same transition to the Sample associated to the analysis request passed in
-
-    This function is called automatically by
-    bika.lims.workflow.AfterTransitionEventHandler
-
-    :param analysis_request: Analysis Request affected by the transition
-    :type analysis_request: AnalysisRequest
     """
-
+    Functio triggered after a 'receive' transition for the Analysis Request
+    passed in is performed.
+    Stores the value for "Date Received" field and also tries to perform the
+    same transition to the Sample the Analysis Request passed in belongs to.
+    :param analysis_request: Analysis Request affected by the transition
+    :type analysis_request: IAnalysisRequest
+    """
     # In most cases, the date of a given transition can be retrieved from an
     # object by using a getter that delegates the action to getTransitionDate,
     # without the need of storing the value manually.
@@ -135,7 +131,10 @@ def after_receive(analysis_request):
     # value manually here.
     analysis_request.setDateReceived(DateTime())
     analysis_request.reindexObject(idxs=["getDateReceived", ])
-    _promote_transition(analysis_request, 'receive')
+
+    sample = analysis_request.getSample()
+    if sample:
+        doActionFor(sample, 'receive')
 
 
 def after_reject(analysis_request):
@@ -278,17 +277,37 @@ def after_reinstate(obj):
         doActionFor(analysis, 'reinstate')
 
 
-def after_cancel(obj):
-    """Method triggered after a 'cancel' transition for the Analysis Request
-    passed in is performed. Deactivates all analyses contained in the object.
-    This function is called automatically by
-    bika.lims.workflow.AfterTransitionEventHandler
-    :param obj: Analysis Request affected by the transition
-    :type obj: AnalysisRequest
+def after_cancel(analysis_request):
     """
-    ans = obj.getAnalyses(full_objects=True, cancellation_state='active')
+    Function triggered after a 'cancel' transition for the Analysis Request
+    passed in is performed. Deactivates all analyses that contains. If the
+    Anaysis Request passed in is the only that hasn't been yet within a Sample,
+    then, triggers te `cancel` transition to the parent Sample.
+    :param analysis_request: Analysis Request affected by the transition
+    :type analysis_request: IAnalysisRequest
+    """
+    ans = analysis_request.getAnalyses(cancellation_state='active')
     for analysis in ans:
         doActionFor(analysis, 'cancel')
+
+    # If this Analysis Request is the only Analysis Request from the Sample
+    # that hasn't been yet cancelled, then promote the `cancel` transition to
+    # the Sample
+    sample = analysis_request.getSample()
+    if not sample:
+        return
+
+    for ar in sample.getAnalysisRequests():
+        if api.get_uid(ar) == api.get_uid(analysis_request):
+            # Same Analysis Request as the one we are evaluating. Dismiss.
+            continue
+        if not getCurrentState(ar, 'cancelled'):
+            # At least there is one AR that belongs to the same Sample that
+            # hasn't been cancelled yet.
+            return
+
+    # Promote to Sample
+    doActionFor(sample, 'cancel')
 
 
 def after_retract(obj):
