@@ -203,24 +203,21 @@ def after_sample_due(partition):
 
 
 def after_receive(partition):
-    """Method triggered after a 'receive' transition for the Sample Partition
+    """
+    Function triggered after a 'receive' transition for the Sample Partition
     passed in is performed.
-
-    Tries to perform the same transition to all the analyses and parent sample
-    associated to the partition passed in. It also stores the value for the
-    "Date Received" field of the partition. The assumption is that if all
-    Sample Partitions of a Sample have been received, the Sample must be
-    received too.
-
-    This function is called automatically by
-    bika.lims.workflow.AfterTransitionEventHandler
-
+    Tries to perform the same transition to all the analyses associated to the
+    partition passed in. It also stores the value for the "Date Received" field
+    of the partition.
     :param partition: Sample partition affected by the transition
     :type partition: SamplePartition
     """
     partition.setDateReceived(DateTime())
     partition.reindexObject(idxs=["getDateReceived", ])
-    _cascade_promote_transition(partition, 'receive')
+
+    # Cascade to analyses
+    for analysis in partition.getAnalysis():
+        doActionFor(analysis, 'receive')
 
 
 def after_reject(partition):

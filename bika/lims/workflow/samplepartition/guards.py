@@ -1,5 +1,5 @@
 # coding=utf-8
-from bika.lims.workflow import isBasicTransitionAllowed
+from bika.lims.workflow import isBasicTransitionAllowed, wasTransitionPerformed
 
 
 def guard_no_sampling_workflow(partition):
@@ -165,18 +165,21 @@ def guard_sample_due(partition):
 
 
 def guard_receive(partition):
-    """Returns true if the 'receive' transition can be performed to the
-    sample partition passed in.
-
-    Returns True if the state of the Sample Partition is active (neither
-    inactive nor cancelled state).
-
-    :param partition: Partition the transition has to be evaluated against.
+    """
+    Returns True if the transition 'receive' can be performed to the Sample
+    Partition passed in.
+    Returns true if the state of the Sample Partition passed in is active and
+    the Sample that belongs to has already been received.
+    :param partition: Partition the transition has to be evaluated against
     :type partition: SamplePartition
-    :returns: True or False
+    :return: True if the Sample Partition passed in can be received
     :rtype: bool
     """
-    return isBasicTransitionAllowed(partition)
+    if not isBasicTransitionAllowed(partition):
+        return False
+
+    sample = partition.getSample()
+    return wasTransitionPerformed(sample, 'receive')
 
 
 def guard_reject(partition):
