@@ -18,12 +18,13 @@ as its associated analyses.
 Thus, this doctest will validate the consistency amongst these different, but
 strongly related objects, during the creation process.
 
+
 Test Setup
 ==========
 
 Running this test from the buildout directory:
 
-    bin/test -t SampleWorkflow
+    bin/test -t WorkflowCreateAnalysisRequest
 
 Needed Imports:
 
@@ -74,16 +75,19 @@ We will test the sample creation with Lab Manager privileges:
 
     >>> setRoles(portal, TEST_USER_ID, ['LabManager',])
 
+
 Analysis Request creation with Sampling Workflow disabled
 ---------------------------------------------------------
 
 Sampling workflow is a setting that lives in `setup` and enables an additional
-route in the workflow to keep track of the sampling process. If the sampling
-workflow is disabled, the Sample reaches the state `registered` first and is
-automatically transitioned thanks to an `after_transition_event` to
+route in the workflow to keep track of the sampling process.
+
+If the sampling workflow is disabled, the Sample reaches the state `registered`
+first and is automatically transitioned thanks to an `after_transition_event` to
 `sample_due` state:
 
     >>> bikasetup.setSamplingWorkflowEnabled(False)
+
 
 Primary Analysis Request
 ........................
@@ -116,69 +120,104 @@ be automatically transitioned to `sample_due`:
 
 Now, check the allowed transitions for this Analysis Request, as well as for its
 associated objects. If no "Rejection Reasons" have been entered in Setup, the
-system does not allow the rejection of an Analysis Request and Sample:
+system does not allow the rejection of netiher an Analysis Request nor a Sample:
 
     >>> bikasetup.setRejectionReasons([])
     >>> bikasetup.isRejectionWorkflowEnabled()
     False
 
-Thus, `receive` and `cancel` (from `cancellation_workflow`) are only allowed
-for the current state of the Analysis Request, Sample and Sample Partitions:
-
-    >>> sorted(getAllowedTransitions(ar))
-    ['cancel', 'receive']
+Thus, `receive` and `cancel` (from `cancellation_workflow`) are the transitions
+allowed for the current state of the Sample:
 
     >>> sorted(getAllowedTransitions(sample))
     ['cancel', 'receive']
 
+Analysis Request can be `received` too, cause its reception triggers the
+reception of the Sample to which belongs. On the other hand, the cancellation
+of an Analysis Request does not trigger the cancellation of the Sample, except
+if the AnalysisRequest is the only AR from this Sample that hasn't been yet
+cancelled:
+
+    >>> sorted(getAllowedTransitions(ar))
+    ['cancel', 'receive']
+
+Because a Sample Partition is a "part" of a Sample, Sample Partitions cannot be
+received individually, the Sample must be received as a whole. Even though,
+Sample Partitions can still be cancelled individually:
+
     >>> allowed = [getAllowedTransitions(part) for part in parts]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['cancel', 'receive']
+    ['cancel']
 
-For analyses, the transition `assign`, that comes from `worksheet_workflow`, is
-allowed too:
+As for Sample Partitions, Analyses cannot be received individually. The Analysis
+Request that contains them (and therefore, the Sample the Analysis Request
+belongs to) must be received as a whole. Moreover, Analyses can not be cancelled
+individually, can be removed or retracted (after reception of the Analysis
+Request), but not cancelled. On the other hand, analyses have the transition
+`assign`, provided by `worksheetanalysis_workflow`, that allows the labman the
+assignment of analyses to analysts:
 
     >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['assign', 'cancel', 'receive']
+    ['assign']
 
-If "Rejection Reasons" are entered in Setup, the system also allows the Analysis
-Request, Sample and Sample Partitions to be rejected:
+
+Primary Analysis Request with rejection reasons enabled
+.......................................................
+
+If "Rejection Reasons" are entered in Setup, the system also allows the user to
+reject Analysis Requests and Samples:
 
     >>> bikasetup.setRejectionReasons([{'checkbox': 'on', 'texfield-1': 'AA'}])
     >>> bikasetup.isRejectionWorkflowEnabled()
     True
 
-Therefore, the allowed transitions for Analysis Request, Sample and Sample
-Partitions are `cancel` (from `cancellation_workflow`), `receive` and `reject`:
-
-    >>> sorted(getAllowedTransitions(ar))
-    ['cancel', 'receive', 'reject']
+The allowed transitions for Sample are `receive`, `cancel` and `reject`:
 
     >>> sorted(getAllowedTransitions(sample))
     ['cancel', 'receive', 'reject']
 
+The same for Analysis Request. While the reception of an Analysis Request
+triggers the reception of the Sample to which belongs, the rejection of an
+Analysis Request does not trigger the cancellation of the Sample, except if the
+Sample only has assigned the Analysis Request to be rejected:
+
+    >>> sorted(getAllowedTransitions(ar))
+    ['cancel', 'receive', 'reject']
+
+Because a Sample Partition is a "part" of a Sample, Sample Partitions cannot be
+neither rejected nor received individually, the Sample must be rejected or
+received as a whole. Even though, Sample Partitions can still be cancelled
+individually:
+
     >>> allowed = [getAllowedTransitions(part) for part in parts]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['cancel', 'receive', 'reject']
+    ['cancel']
 
-There is no `reject` transition for analyses, cause the rejection is done at
-Analysis Request and/or Sample levels, without effect to analyses. Rather,
-analyses have the transition `assign`, that comes from `worksheet_workflow`:
+As for Sample Partitions, Analyses cannot be neither rejected nor received
+individually. The Analysis Request that contains them (and therefore, the Sample
+the Analysis Request belongs to) must be received or rejected as a whole.
+Moreover, Analyses can not be cancelled individually, can be removed or
+retracted (after reception of the Analysis Request), but not cancelled. On the
+other hand, analyses have the transition `assign`, provided by
+`worksheetanalysis_workflow`, that allows the labman the assignment of analyses
+to analysts:
 
     >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['assign', 'cancel', 'receive']
+    ['assign']
+
 
 Secondary Analysis Request
 ..........................
 
-If we create a new Analysis Request, but using the same Sample as before, this
-new Analysis Request will automatically be transitioned to `sample_due` state:
+If a new Analysis Request is created, but using the same Sample as before, this
+new Analysis Request will automatically be transitioned to the same state the
+Sample has reached. In this case, the `sample_due` state:
 
     >>> values['Sample'] = sample.UID()
     >>> ar = create_analysisrequest(client, request, values, service_uids)
@@ -197,75 +236,15 @@ And its analyses:
     >>> [getCurrentState(an) for an in analyses]
     ['sample_due', 'sample_due']
 
-Now, check the allowed transitions for this secondary Analysis Request, as well
-as for its associated objects. If no "Rejection Reasons" have been entered in
-Setup, the system does not allow the rejection of an Analysis Request:
-
-    >>> bikasetup.setRejectionReasons([])
-    >>> bikasetup.isRejectionWorkflowEnabled()
-    False
-
-Thus, `receive` and `cancel` (from `cancellation_workflow`) are only allowed
-for the current state of the Analysis Request, Sample and Sample Partitions:
-
-    >>> sorted(getAllowedTransitions(ar))
-    ['cancel', 'receive']
-
-    >>> sorted(getAllowedTransitions(sample))
-    ['cancel', 'receive']
-
-    >>> allowed = [getAllowedTransitions(part) for part in parts]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> sorted(set(allowed))
-    ['cancel', 'receive']
-
-For analyses, the transition `assign`, that comes from `worksheet_workflow`, is
-allowed too:
-
-    >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> sorted(set(allowed))
-    ['assign', 'cancel', 'receive']
-
-If "Rejection Reasons" are entered in Setup, the system also allows the
-rejection of the Analysis Request, Sample and Sample Partitions:
-
-    >>> bikasetup.setRejectionReasons([{'checkbox': 'on', 'texfield-1': 'AA'}])
-    >>> bikasetup.isRejectionWorkflowEnabled()
-    True
-
-Therefore, the allowed transitions for Analysis Request, Sample and Sample
-Partitions are `cancel` (from `cancellation_workflow`), `receive` and `reject`:
-
-    >>> sorted(getAllowedTransitions(ar))
-    ['cancel', 'receive', 'reject']
-
-    >>> sorted(getAllowedTransitions(sample))
-    ['cancel', 'receive', 'reject']
-
-    >>> allowed = [getAllowedTransitions(part) for part in parts]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> sorted(set(allowed))
-    ['cancel', 'receive', 'reject']
-
-There is no 'reject' transition for analyses, cause the rejection is done at
-AnalysisRequest and/or Sample levels, without effect to analyses. Rather,
-analyses have the transition `assign`, that comes from `worksheet_workflow`:
-
-    >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> sorted(set(allowed))
-    ['assign', 'cancel', 'receive']
 
 Analysis Request creation with Sampling Workflow enabled
 --------------------------------------------------------
 
-Sampling workflow is a setting that lives in `setup` that enables an additional
-route in the workflow to keep track of the sampling process. If the sampling
-workflow is enabled, the Sample reaches the state `registered` first and then
-is automatically transitioned to `to_be_sampled` state:
+If the sampling workflow is enabled, the Sample reaches the state `registered`
+first and then is automatically transitioned to `to_be_sampled` state:
 
     >>> bikasetup.setSamplingWorkflowEnabled(True)
+
 
 Primary Analysis Request
 ........................
@@ -296,7 +275,7 @@ be automatically transitioned to `to_be_sampled`:
     >>> [getCurrentState(an) for an in analyses]
     ['to_be_sampled', 'to_be_sampled']
 
-If no Date Sampled (not we've created the Analysis Request with a Samplind Date
+If no Date Sampled (note we've created the Analysis Request with a Sampling Date
 instead of a Date Sampled) and Sampler are not set, `sample` transition is not
 allowed:
 
@@ -329,7 +308,7 @@ transition is still not allowed:
     >>> 'sample' in allowed
     False
 
-The same result if we only assign the Date Sampled:
+The same result if we only assign the Date Sampled, but without Sampler:
 
     >>> sample.setSampler(None)
     >>> sample.setDateSampled(date_now)
@@ -344,29 +323,34 @@ The same result if we only assign the Date Sampled:
     >>> 'sample' in allowed
     False
 
-Indeed, we have to assign both Date Sampled and Sampler for the transition
-`sample` to be allowed:
+Indeed, we have to assign both Date Sampled and Sampler to allow the `sample`
+transition for the Sample:
 
     >>> sample.setSampler("I am a sampler")
     >>> sample.setDateSampled(date_now)
+    >>> 'sample' in getAllowedTransitions(sample)
+    True
+
+Analysis Request can be `sampled` too, cause performing this `sample` transition
+to the Analysis Request triggers the same transition for the Sample the Analysis
+Requests belongs to. And the same the other way round; `sample` transition
+applied to a Sample triggers the same transition to all Analysis Requests
+associated:
+
     >>> 'sample' in getAllowedTransitions(ar)
     True
 
-    >>> 'sample' in getAllowedTransitions(sample)
-    True
+Because a Sample Partition is a "part" of a Sample, Sample Partitions cannot be
+sampled individually, the Sample must be sampled as a whole:
 
     >>> allowed = [getAllowedTransitions(part) for part in parts]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> 'sample' in allowed
-    True
+    False
 
-But note that `sample` transition is not allowed for analyses, cause this
-transition is performed automatically to them when their assigned Sample
-Partitions are effectively transitioned (analysis guard for `sample` only
-returns True if the transition has already been performed to the Sample
-Partition). In summary, we do not want the user to be able to "Sample" an
-Analysis, it doesn't make sense. This state is maintained in `analysis_workflow`
-for sync purposes with the Sample Partition only:
+As for Sample Partitions, Analyses cannot be sampled individually, the Analysis
+Request that contains them (and therefore, the Sample the Analysis Request
+belongs to) must be sampled as a whole:
 
     >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
     >>> allowed = [item for sublist in allowed for item in sublist]
@@ -375,8 +359,7 @@ for sync purposes with the Sample Partition only:
 
 Now, check the allowed transitions for this Analysis Request, as well as for its
 associated objects. If "Schedule Sampling" and "Rejection Reasons" are disabled
-in Setup, then only transitions `cancel` from `cancellation_workflow` and
-`sample` are allowed:
+in Setup, then only transitions `cancel` and `sample` are allowed:
 
     >>> bikasetup.setRejectionReasons([])
     >>> bikasetup.isRejectionWorkflowEnabled()
@@ -385,25 +368,43 @@ in Setup, then only transitions `cancel` from `cancellation_workflow` and
     >>> bikasetup.getScheduleSamplingEnabled()
     False
 
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'sample']
+
+Analysis Request can be `sampled` too, cause performing this `sample` transition
+to the Analysis Request triggers the same transition for the Sample the Analysis
+Requests belongs to. And the same the other way round; `sample` transition
+applied to a Sample triggers the same transition to all Analysis Requests
+associated:
+
     >>> sorted(getAllowedTransitions(ar))
     ['cancel', 'sample']
 
-    >>> sorted(getAllowedTransitions(sample))
-    ['cancel', 'sample']
+Because a Sample Partition is a "part" of a Sample, Sample Partitions cannot be
+sampled individually, the Sample must be sampled as a whole. Even though, Sample
+Partitions can still be cancelled individually:
 
     >>> allowed = [getAllowedTransitions(part) for part in parts]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['cancel', 'sample']
+    ['cancel']
 
-For analyses, only the transition `assign`, that comes from
-`worksheet_workflow`, and `cancel` that comes from `cancellation_workflow` are
-allowed. Remember that `sample` transition is not allowed for analyses:
+As for Sample Partitions, Analyses cannot be sampled individually. The Analysis
+Request that contains them (and therefore, the Sample the Analysis Request
+belongs to) must be sampled as a whole. Moreover, Analyses can not be cancelled
+individually, can be removed or retracted (after reception of the Analysis
+Request), but not cancelled. On the other hand, analyses have the transition
+`assign`, provided by `worksheetanalysis_workflow`, that allows the labman the
+assignment of analyses to analysts:
 
     >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['assign', 'cancel']
+    ['assign']
+
+
+Primary Analysis Request with rejection reasons enabled
+.......................................................
 
 If "Rejection Reasons" are enabled in Setup, the additional `reject` transition
 is available:
@@ -412,20 +413,24 @@ is available:
     >>> bikasetup.isRejectionWorkflowEnabled()
     True
 
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'reject', 'sample']
+
     >>> sorted(getAllowedTransitions(ar))
     ['cancel', 'reject', 'sample']
 
-    >>> sorted(getAllowedTransitions(sample))
-    ['cancel', 'reject', 'sample']
+As discussed before, partitions cannot be neither rejected nor sampled
+individually, the whole Sample or Analysis Request must be rejected or sampled
+instead. Even though, Sample Partitions can still be cancelled individually:
 
     >>> allowed = [getAllowedTransitions(part) for part in parts]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['cancel', 'reject', 'sample']
+    ['cancel']
 
 If "Schedule Sampling" is enabled in Setup, an additional transition
-`schedule_sampling` is available, but only if a Sampler for the Schedule and
-a Sampling Date are assigned:
+`schedule_sampling` is available, but only if the Sample has both a Sampler for
+the Scheduled Sampling and a valid Sampling Date assigned:
 
     >>> bikasetup.setScheduleSamplingEnabled(True)
     >>> bikasetup.getScheduleSamplingEnabled()
@@ -443,7 +448,7 @@ a Sampling Date are assigned:
     >>> allowed = [getAllowedTransitions(part) for part in parts]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['cancel', 'reject', 'sample']
+    ['cancel']
 
 So, we need to set a Sampler that will be in charge of Sampling (we already
 assigned a Sampling Date when we created the Analysis Request):
@@ -454,33 +459,40 @@ assigned a Sampling Date when we created the Analysis Request):
 
 And then, the `schedule_sampling` transition becomes available:
 
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'reject', 'sample', 'schedule_sampling']
+
     >>> sorted(getAllowedTransitions(ar))
     ['cancel', 'reject', 'sample', 'schedule_sampling']
 
-    >>> sorted(getAllowedTransitions(sample))
-    ['cancel', 'reject', 'sample', 'schedule_sampling']
+As for `reject` and `sample`, the `schedule_sampling` transition cannot be
+performed individually to a Sample Partition:
 
     >>> allowed = [getAllowedTransitions(part) for part in parts]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['cancel', 'reject', 'sample', 'schedule_sampling']
+    ['cancel']
 
-There is neither `reject` nor `schedule_sampling` transitions for analyses,
-cause both transitions have meaning at AnalysisRequest and/or Sample levels.
-Rather, analyses have the transition `assign`, that comes from
-`worksheet_workflow`. Remember that `sample` transition is not allowed for
-analyses:
+Analyses cannot be scheduled for sampling. The Analysis Request that contains
+them (and therefore, the Sample the Analysis Request belongs to) must be
+scheduled for sampling as a whole. Moreover, Analyses can not be cancelled
+individually, can be removed or retracted (after reception of the Analysis
+Request), but not cancelled. On the other hand, analyses have the transition
+`assign`, provided by `worksheetanalysis_workflow`, that allows the labman the
+assignment of analyses to analysts:
 
     >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
     >>> allowed = [item for sublist in allowed for item in sublist]
     >>> sorted(set(allowed))
-    ['assign', 'cancel']
+    ['assign']
+
 
 Secondary Analysis Request
 ..........................
 
-If we create a new Analysis Request, but using the same Sample as before, this
-new AR will automatically be transitioned to `to_be_sampled` state:
+If a new Analysis Request is created, but using the same Sample as before, this
+new Anlaysis Request will automatically be transitioned to the same state the
+Sample has reached. In this case, the `to_be_sampled` state:
 
     >>> values['Sample'] = sample.UID()
     >>> ar = create_analysisrequest(client, request, values, service_uids)
@@ -503,9 +515,4 @@ Since we've reused the same Sample as before, both Date Sampled and Sampler are
 preserved and transition `sample` is allowed for this secondary AR:
 
     >>> 'sample' in getAllowedTransitions(ar)
-    True
-
-    >>> allowed = [getAllowedTransitions(part) for part in parts]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> 'sample' in allowed
     True

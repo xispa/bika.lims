@@ -18,12 +18,13 @@ as its associated analyses.
 Thus, this doctest validates the consistency amongst these different, but
 strongly related objects, during the creation process.
 
+
 Test Setup
 ==========
 
 Running this test from the buildout directory:
 
-    bin/test -t SampleWorkflow
+    bin/test -t WorkflowReceiveAnalysisRequest
 
 Needed Imports:
 
@@ -83,12 +84,12 @@ automatically transitioned thanks to an `after_transition_event` to
 
     >>> bikasetup.setSamplingWorkflowEnabled(False)
 
+
 Analysis Request reception
 --------------------------
 
 We create a primary Analysis Request:
 
-    >>> setRoles(portal, TEST_USER_ID, ['LabManager',])
     >>> values = {
     ...     'Client': client.UID(),
     ...     'Contact': contact.UID(),
@@ -156,3 +157,57 @@ transitioned already:
     >>> sorted(getAllowedTransitions(ar))
     ['cancel']
 
+
+Sample reception
+----------------
+
+User cannot receive a Sample Partition individually, Sample must be received
+as a whole:
+
+We create a primary Analysis Request:
+
+    >>> values = {
+    ...     'Client': client.UID(),
+    ...     'Contact': contact.UID(),
+    ...     'DateSampled': date_now,
+    ...     'SampleType': sampletype.UID()}
+    >>> service_uids = [Cu.UID(), Fe.UID()]
+    >>> ar = create_analysisrequest(client, request, values, service_uids)
+    >>> getCurrentState(ar)
+    'sample_due'
+
+And a secondary Analysis Request for the same Sample:
+
+    >>> sample = ar.getSample()
+    >>> values['Sample'] = sample.UID()
+    >>> ar1 = create_analysisrequest(client, request, values, service_uids)
+    >>> getCurrentState(ar1)
+    'sample_due'
+
+We receive the Sample:
+
+    >>> performed = doActionFor(sample, 'receive')
+
+And check the current state of the Sample itself and the rest of the objects
+associated:
+
+    >>> getCurrentState(sample)
+    'sample_received'
+
+    >>> getCurrentState(ar)
+    'sample_received'
+
+    >>> getCurrentState(ar1)
+    'sample_received'
+
+    >>> parts = sample.getSamplePartitions()
+    >>> list(set([getCurrentState(part) for part in parts]))
+    ['sample_received']
+
+    >>> analyses = ar.getAnalyses()
+    >>> list(set([getCurrentState(an) for an in analyses]))
+    ['sample_received']
+
+    >>> analyses = ar1.getAnalyses()
+    >>> list(set([getCurrentState(an) for an in analyses]))
+    ['sample_received']
