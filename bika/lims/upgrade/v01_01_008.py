@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+
+from bika.lims import api
 from bika.lims import logger
 from bika.lims.config import PROJECTNAME as product
 from bika.lims.upgrade import upgradestep
@@ -5,6 +8,13 @@ from bika.lims.upgrade.utils import UpgradeUtils
 
 version = '1.1.8'  # Remember version number in metadata.xml and setup.py
 profile = 'profile-{0}:default'.format(product)
+
+INDEXES = [
+    # catalog, id, indexed attribute, type
+    ("bika_setup_catalog", "getSampleTypeTitle", "", "FieldIndex"),
+    ("bika_setup_catalog", "getSampleTypeTitles", "", "KeywordIndex"),
+]
+
 
 @upgradestep(product, version)
 def upgrade(tool):
@@ -20,6 +30,7 @@ def upgrade(tool):
     logger.info("Upgrading {0}: {1} -> {2}".format(product, ver_from, version))
 
     # -------- ADD YOUR STUFF HERE --------
+    upgrade_indexes()
 
     from workflow_refactoring import fix_workflows
     fix_workflows(portal)
@@ -30,3 +41,39 @@ def upgrade(tool):
 
     return True
 
+
+def upgrade_indexes():
+    logger.info("Fixing broken calculations (re-assignment of dependents)...")
+
+    to_index = []
+    for catalog, name, attribute, meta_type in INDEXES:
+        c = api.get_tool(catalog)
+
+        # get the index from the catalog
+        index = c._catalog.indexes.get(name, None)
+
+        # continue if the index exists and has the right meta type
+        if index and index.meta_type == meta_type:
+            logger.info("*** Index '{}' of type '{}' is already in catalog '{}'"
+                        .format(name, meta_type, catalog))
+            continue
+
+        # remove the existing index with the wrong meta_type
+        if index is not None:
+            logger.info("*** Removing index '{}' from catalog '{}'"
+                        .format(name, catalog))
+            c._catalog.delIndex(name)
+
+        # add the index with the right meta_type
+        logger.info("*** Adding index '{}' of type '{}' to catalog '{}'"
+                    .format(name, meta_type, catalog))
+        c.addIndex(name, meta_type)
+        to_index.append((catalog, name))
+
+    for catalog, name in to_index:
+        c = api.get_tool(catalog)
+        logger.info("*** Indexing new index '{}' of catalog {} ..."
+                    .format(name, catalog))
+        c.manage_reindexIndex(name)
+        logger.info("*** Indexing new index '{}' of catalog {} [DONE]"
+                    .format(name, catalog))
