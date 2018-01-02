@@ -108,8 +108,25 @@ def guard_sample_prep_complete(obj):
     return isBasicTransitionAllowed(obj)
 
 
-def guard_receive(obj):
-    return isBasicTransitionAllowed(obj)
+def guard_receive(analysis):
+    """
+    Returns True if the transition 'receive' can be performed to the Analysis
+    passed in.
+
+    Returns True if the following conditions are met:
+    - The Analysis is active (neither inactive nor cancelled state)
+    - The Analysis Request the Analysis belongs to has been received
+
+    :param analysis: Analysis the transition has to be evaluated against
+    :type analysis: Analysis
+    :return: True if the Analysis passed in can be assigned
+    :rtype: bool
+    """
+    if not isActive(analysis):
+        return False
+
+    ar = analysis.getRequest()
+    return wasTransitionPerformed(ar, 'receive')
 
 
 def guard_publish(obj):
