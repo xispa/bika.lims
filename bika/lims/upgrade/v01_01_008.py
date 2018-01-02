@@ -39,11 +39,6 @@ def upgrade(tool):
     setup.runImportStepFromProfile('profile-bika.lims:default', 'plone.app.registry')
     upgrade_indexes()
 
-    from workflow_refactoring import fix_workflows
-    fix_workflows(portal)
-
-
-
     logger.info("{0} upgraded to version {1}".format(product, version))
 
     return True

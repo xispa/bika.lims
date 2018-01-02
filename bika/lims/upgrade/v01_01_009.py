@@ -11,7 +11,7 @@ from bika.lims.config import PROJECTNAME as product
 from bika.lims.upgrade import upgradestep
 from bika.lims.upgrade.utils import UpgradeUtils
 from Products.CMFCore.Expression import Expression
-from bika.lims.utils import changeWorkflowState
+from bika.lims.workflow import changeWorkflowState
 
 version = '1.1.9'  # Remember version number in metadata.xml and setup.py
 profile = 'profile-{0}:default'.format(product)
@@ -31,6 +31,10 @@ def upgrade(tool):
 
     # -------- ADD YOUR STUFF HERE --------
     fix_workflow_transitions(portal)
+
+    # Workflow refactoring
+    from workflow_refactoring import fix_workflows
+    fix_workflows(portal)
 
     # Migration to senaite.core
     setup = portal.portal_setup

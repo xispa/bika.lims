@@ -21,7 +21,8 @@ from bika.lims.interfaces import (IAnalysisRequest, IDuplicateAnalysis,
 from bika.lims.permissions import Verify as VerifyPermission
 from bika.lims.permissions import EditWorksheet, ManageWorksheets
 from bika.lims.utils import to_utf8 as _c
-from bika.lims.utils import changeWorkflowState, tmpID, to_int
+from bika.lims.utils import tmpID, to_int
+from bika.lims.workflow import changeWorkflowState
 from bika.lims.workflow import doActionFor, getCurrentState, skip
 from bika.lims.workflow.worksheet import events, guards
 from DateTime import DateTime
