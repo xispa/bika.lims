@@ -6,7 +6,7 @@
 # Some rights reserved. See LICENSE.rst, CONTRIBUTORS.rst.
 
 from Products.CMFCore.utils import getToolByName
-from bika.lims.workflow import getCurrentState
+from bika.lims.workflow import getCurrentState, isActive
 from bika.lims.workflow import isBasicTransitionAllowed
 from bika.lims.workflow import isTransitionAllowed
 from bika.lims.workflow import wasTransitionPerformed
@@ -137,24 +137,46 @@ def guard_attach(obj):
     return True
 
 
-def guard_assign(obj):
-    return isBasicTransitionAllowed(obj)
-
-
-def guard_unassign(obj):
-    """Check permission against parent worksheet
+def guard_assign(analysis):
     """
-    mtool = getToolByName(obj, "portal_membership")
-    if not isBasicTransitionAllowed(obj):
+    Returns True if the transition 'assign' can be performed to the Analysis
+    passed in.
+
+    Returns True if the following conditions are met:
+    - The Analysis is active (neither inactive nor cancelled state)
+    - The Analysis belongs to a Worksheet
+
+    :param analysis: Analysis the transition has to be evaluated against
+    :type analysis: Analysis
+    :return: True if the Analysis passed in can be assigned
+    :rtype: bool
+    """
+    if not isActive(analysis):
         return False
-    ws = obj.getBackReferences("WorksheetAnalysis")
-    if not ws:
+
+    worksheet = analysis.getBackReferences('WorksheetAnalysis')
+    return worksheet and True or False
+
+
+def guard_unassign(analysis):
+    """
+    Returns True if the transition 'unassign' can be performed to the Analysis
+    passed in.
+
+    Returns True if the following conditions are met:
+    - The Analysis is active (neither inactive nor cancelled state)
+    - The Analysis belongs to a Worksheet
+
+    :param analysis: Analysis the transition has to be evaluated against
+    :type analysis: Analysis
+    :return: True if the Analysis passed in can be unassigned
+    :rtype: bool
+    """
+    if not isActive(analysis):
         return False
-    ws = ws[0]
-    if isBasicTransitionAllowed(ws):
-        if mtool.checkPermission(Unassign, ws):
-            return True
-    return False
+
+    worksheet = analysis.getBackReferences('WorksheetAnalysis')
+    return worksheet and True or False
 
 
 def guard_verify(obj):
