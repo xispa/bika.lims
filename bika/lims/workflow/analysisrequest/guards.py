@@ -194,21 +194,25 @@ def guard_reject(analysis_request):
     """Returns true if the 'reject' transition can be performed to the
     analysis request passed in.
 
-    Returns True if the transition can be performed to the Sample associated to
-    the analysis request passed in or the Sample has already been transitioned.
+    Returns True if the following conditions are met:
+    - The Analysis Request is active (neither inactive nor cancelled state)
+    - Rejection workflow is enabled in bika_setup
+    - The Sample the Partition belongs to has been rejected or can be rejected
 
     :param analysis_request: Request the transition has to be evaluated against
     :type analysis_request: AnalysisRequest
     :returns: True or False
     :rtype: bool
     """
+    if not isActive(analysis_request):
+        return False
+
     sample = analysis_request.getSample()
-    if sample:
-        return isTransitionAllowed(instance=analysis_request,
-                                   transition_id='reject',
-                                   dependencies=[sample],
-                                   target_statuses=['rejected'],
-                                   check_action=False)
+    current_state = getCurrentState(sample)
+    if current_state == 'rejected':
+        return True
+
+    return isTransitionAllowed(sample, 'reject')
 
 
 def guard_expire(analysis_request):

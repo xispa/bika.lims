@@ -1,5 +1,6 @@
 # coding=utf-8
-from bika.lims.workflow import isBasicTransitionAllowed, wasTransitionPerformed
+from bika.lims.workflow import isBasicTransitionAllowed, wasTransitionPerformed, \
+    isActive, getCurrentState
 
 
 def guard_no_sampling_workflow(partition):
@@ -188,17 +189,18 @@ def guard_reject(partition):
 
     Returns True if the following conditions are met:
     - The Sample partition is active (neither inactive nor cancelled state)
-    - Rejection workflow is enabled in bika_setup
+    - The Sample the Partition belongs to has been rejected
 
     :param partition: Partition the transition has to be evaluated against.
     :type partition: SamplePartition
     :returns: True or False
     :rtype: bool
     """
-    if not partition.bika_setup.isRejectionWorkflowEnabled():
+    if not isActive(partition):
         return False
 
-    return isBasicTransitionAllowed(partition)
+    sample = partition.getSample()
+    return getCurrentState(sample) == 'rejected'
 
 
 def guard_dispose(partition):

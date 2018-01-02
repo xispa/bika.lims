@@ -231,25 +231,17 @@ def guard_reject(sample):
 
     Returns True if the following conditions are met:
     - The Sample is active (neither inactive nor cancelled state)
-    - The transition can be performed if there is no active partitions with a
-      state other than 'rejected' or 'reject' transition cannot be performed.
-
-    Note this function does not check if the Rejection workflow is enabled in
-    Bika Setup. This check is delegated to guard from partitions.
+    - Rejection workflow is enabled in Setup
 
     :param sample: the Sample the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    partitions = sample.getSamplePartitions()
-    if partitions:
-        return isTransitionAllowed(instance=sample,
-                                   transition_id='reject',
-                                   dependencies=partitions,
-                                   target_statuses=['rejected'],
-                                   check_all=True,
-                                   check_action=False)
+    if not isActive(sample):
+        return False
+
+    return sample.bika_setup.isRejectionWorkflowEnabled()
 
 
 def guard_expire(sample):

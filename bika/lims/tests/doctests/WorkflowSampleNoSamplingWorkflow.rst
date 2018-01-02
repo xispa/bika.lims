@@ -177,7 +177,7 @@ Validate transitions when Sample Due with rejections reasons enabled
 If "Rejection reasons" have been entered in Setup, the system does allow the
 rejection of Analysis Requests and Samples:
 
-    >>> reasons = [{'selected': 'on',
+    >>> reasons = [{'checkbox': 'on',
     ...             'textfield-0': 'a',
     ...             'textfield-1': 'b',
     ...             'textfield-2': 'c'}]
