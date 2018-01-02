@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-# This file is part of Bika LIMS
+# This file is part of SENAITE.CORE
 #
-# Copyright 2011-2017 by it's authors.
-# Some rights reserved. See LICENSE.txt, AUTHORS.txt.
+# Copyright 2018 by it's authors.
+# Some rights reserved. See LICENSE.rst, CONTRIBUTORS.rst.
 
 import collections
 import copy
@@ -24,6 +24,9 @@ from bika.lims.api import get_tool, get_object_by_uid, get_current_user, \
     get_object, get_transitions_for
 from bika.lims.browser import BrowserView
 from bika.lims.interfaces import IFieldIcons
+from bika.lims.interfaces import ITopRightHTMLComponentsHook
+from bika.lims.interfaces import ITopLeftHTMLComponentsHook
+from bika.lims.interfaces import ITopWideHTMLComponentsHook
 from bika.lims.utils import getFromString
 from bika.lims.utils import getHiddenAttributesForClass
 from bika.lims.utils import t
@@ -1386,6 +1389,24 @@ class BikaListingView(BrowserView):
         self.cat = self.request.get('ajax_category_expand')
         self.contentFilter[self.category_index] = self.request.get('cat')
 
+        # Filter items by state. First remove them from contentFilter
+        # and then, look for its value from the request
+        clear_states = ['inactive_state', 'review_state', 'cancellation_state']
+        for clear_state in clear_states:
+            if clear_state in self.contentFilter:
+                del self.contentFilter[clear_state]
+        req_revstate = self.request.get('review_state', None)
+        if req_revstate:
+            for revstate in self.review_states:
+                if revstate.get('id', None) != req_revstate:
+                    continue
+                rev_cfilter = revstate.get('contentFilter', {})
+                if not rev_cfilter:
+                    continue
+                for key, value in rev_cfilter.items():
+                    self.contentFilter[key] = value
+                break
+
         # These are required to allow the template to work with this class as
         # the view.  Normally these are attributes of class BikaListingTable.
         self.bika_listing = self
@@ -1592,6 +1613,45 @@ class BikaListingTable(tableview.Table):
                         state['columns'].remove(field)
                 new_states.append(state)
         self.bika_listing.review_states = new_states
+
+    def get_top_right_hooks(self):
+        """
+        Get adapters (hooks) that implements ITopRightListingHook.
+        The information got from those adapters will be placed right-over the
+        list.
+
+        :return: html code
+        """
+        return self.get_adapters_html(ITopRightHTMLComponentsHook)
+
+    def get_top_left_hooks(self):
+        """
+        Get adapters (hooks) that implements ITopLeftListingHook.
+        The information got from those adapters will be placed left-over the
+        list.
+
+        :return: html code
+        """
+        return self.get_adapters_html(ITopLeftHTMLComponentsHook)
+
+    def get_top_wide_hooks(self):
+        """
+        Get adapters (hooks) that implements ITopWideListingHook.
+        The information got from those adapters will be placed wide-over the
+        list.
+
+        :return: html code
+        """
+        return self.get_adapters_html(ITopWideHTMLComponentsHook)
+
+    def get_adapters_html(self, adapter_provider=None):
+        if not adapter_provider:
+            return ''
+        adapters = getAdapters((self, ), adapter_provider)
+        export_options = ''
+        for name, adapter in adapters:
+            export_options += adapter(self.request)
+        return export_options
 
     def tabindex(self):
         i = 0

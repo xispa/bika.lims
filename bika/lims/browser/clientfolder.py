@@ -1,7 +1,9 @@
-# This file is part of Bika LIMS
+# -*- coding: utf-8 -*-
 #
-# Copyright 2011-2016 by it's authors.
-# Some rights reserved. See LICENSE.txt, AUTHORS.txt.
+# This file is part of SENAITE.CORE
+#
+# Copyright 2018 by it's authors.
+# Some rights reserved. See LICENSE.rst, CONTRIBUTORS.rst.
 
 import json
 
@@ -36,6 +38,9 @@ class ClientFolderContentsView(BikaListingView):
         self.description = ""
         self.form_id = "list_clientsfolder"
         self.sort_on = "sortable_title"
+        # Landing page to be added to the link of each client from the list
+        self.landing_page = get_registry_value(self._LANDING_PAGE_REGISTRY_KEY,
+                                               self._DEFAULT_LANDING_PAGE)
         self.contentFilter = {'portal_type': 'Client',
                               'sort_on': 'sortable_title',
                               'sort_order': 'ascending'}
@@ -116,10 +121,6 @@ class ClientFolderContentsView(BikaListingView):
         # Display a checkbox next to each client in the list only if the user
         # has rights for ManageClients
         self.show_select_column = check_permission(ManageClients, self.context)
-
-        # Landing page to be added to the link of each client from the list
-        self.landing_page = get_registry_value(self._LANDING_PAGE_REGISTRY_KEY,
-                                               self._DEFAULT_LANDING_PAGE)
 
         return super(ClientFolderContentsView, self).__call__()
 

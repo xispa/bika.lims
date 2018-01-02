@@ -1,7 +1,12 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
+#
+# This file is part of SENAITE.CORE
+#
+# Copyright 2018 by it's authors.
+# Some rights reserved. See LICENSE.rst, CONTRIBUTORS.rst.
+
 import sys
 import traceback
-
 from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.CMFCore.utils import getToolByName
 from Products.CMFPlone.interfaces import IWorkflowChain

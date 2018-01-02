@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-# This file is part of Bika LIMS
+# This file is part of SENAITE.CORE
 #
-# Copyright 2011-2017 by it's authors.
-# Some rights reserved. See LICENSE.txt, AUTHORS.txt.
+# Copyright 2018 by it's authors.
+# Some rights reserved. See LICENSE.rst, CONTRIBUTORS.rst.
 
 from zope.interface import Interface
 
@@ -807,4 +807,19 @@ class INumberGenerator(Interface):
 
 class IGenerateID(Interface):
     """Marker Interface to generate an ID
+    """
+
+class ITopRightHTMLComponentsHook(Interface):
+    """
+    Marker interface to hook html components in bikalisting
+    """
+
+class ITopLeftHTMLComponentsHook(Interface):
+    """
+    Marker interface to hook html components in bikalisting
+    """
+
+class ITopWideHTMLComponentsHook(Interface):
+    """
+    Marker interface to hook html components in bikalisting
     """

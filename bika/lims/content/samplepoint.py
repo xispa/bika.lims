@@ -1,7 +1,9 @@
-# This file is part of Bika LIMS
+# -*- coding: utf-8 -*-
 #
-# Copyright 2011-2016 by it's authors.
-# Some rights reserved. See LICENSE.txt, AUTHORS.txt.
+# This file is part of SENAITE.CORE
+#
+# Copyright 2018 by it's authors.
+# Some rights reserved. See LICENSE.rst, CONTRIBUTORS.rst.
 
 import sys
 
@@ -10,8 +12,6 @@ from Products.ATContentTypes.lib.historyaware import HistoryAwareMixin
 from Products.Archetypes.public import BaseContent
 from Products.Archetypes.public import BooleanField
 from Products.Archetypes.public import BooleanWidget
-from Products.Archetypes.public import ComputedField
-from Products.Archetypes.public import ComputedWidget
 from Products.Archetypes.public import DisplayList
 from Products.Archetypes.public import FileWidget
 from Products.Archetypes.public import ReferenceField
@@ -30,9 +30,9 @@ from bika.lims.browser.fields import CoordinateField
 from bika.lims.browser.fields import DurationField
 from bika.lims.browser.widgets import CoordinateWidget
 from bika.lims.browser.widgets import DurationWidget
-from bika.lims.browser.widgets.referencewidget import ReferenceWidget as brw
 from bika.lims.config import PROJECTNAME
 from bika.lims.content.bikaschema import BikaSchema
+from bika.lims.browser.widgets.referencewidget import ReferenceWidget as BikaReferenceWidget
 
 
 schema = BikaSchema.copy() + Schema((
@@ -79,7 +79,7 @@ schema = BikaSchema.copy() + Schema((
         allowed_types=('SampleType',),
         vocabulary='SampleTypesVocabulary',
         relationship='SamplePointSampleType',
-        widget=brw(
+        widget=BikaReferenceWidget(
             label=_("Sample Types"),
             description=_("The list of sample types that can be collected "
                           "at this sample point.  If no sample types are "
@@ -142,7 +142,6 @@ class SamplePoint(BaseContent, HistoryAwareMixin):
             return [""]
         return sample_type_titles
 
-    @deprecated("Please use getSampleTypeTitles instead")
     def getSampleTypeTitle(self):
         """Returns a comma separated list of sample type titles
         """
