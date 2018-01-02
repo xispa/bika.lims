@@ -215,23 +215,14 @@ def guard_receive(sample):
     passed in.
 
     Returns True if the following conditions are met:
-    - The Sample is active (neither inactive nor cancelled state)
-    - The transition can be performed if all active associated partitions have
-      either been transitioned or can transition.
+    - The Sample is active (neither inactive nor cancelled status)
 
-    :param sample: the Sample the transition has to be evaluated against.
+    :param sample: Sample object the transition has to be evaluated against.
     :type sample: Sample
     :returns: True or False
     :rtype: bool
     """
-    partitions = sample.getSamplePartitions()
-    if partitions:
-        return isTransitionAllowed(instance=sample,
-                                   transition_id='receive',
-                                   dependencies=partitions,
-                                   check_all=True,
-                                   check_history=True,
-                                   check_action=False)
+    return isActive(sample)
 
 
 def guard_reject(sample):
