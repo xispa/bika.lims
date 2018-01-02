@@ -25,71 +25,9 @@ window.AnalysisRequestView = ->
     window.location.href = href
     return
 
-  transition_schedule_sampling = ->
-
-    ### Force the transition to use the "workflow_action" url instead of content_status_modify. workflow_action triggers a class from
-    analysisrequest/workflow/AnalysisRequestWorkflowAction which manage
-    workflow_actions from analysisrequest/sample/samplepartition objects.
-    It is not possible to abort a transition using "workflow_script_*".
-    The recommended way is to set a guard instead.
-
-    The guard expression should be able to look up a view to facilitate more complex guard code, but when a guard returns False the transition isn't even listed as available. It is listed after saving the fields.
-
-    TODO This should be using content_status_modify!  modifying the href
-    is silly.
-    ###
-
-    url = $('#workflow-transition-schedule_sampling').attr('href')
-    if url
-      new_url = url.replace('content_status_modify', 'workflow_action')
-      $('#workflow-transition-schedule_sampling').attr 'href', new_url
-      # When user clicks on the transition
-      $('#workflow-transition-schedule_sampling').click ->
-        date = $('#SamplingDate').val()
-        sampler = $('#ScheduledSamplingSampler').val()
-        if date != '' and date != undefined and date != null and sampler != '' and sampler != undefined and sampler != null
-          window.location.href = new_url
-        else
-          message = ''
-          if date == '' or date == undefined or date == null
-            message = message + PMF('${name} is required for this action, please correct.', 'name': _('Sampling Date'))
-          if sampler == '' or sampler == undefined or sampler == null
-            if message != ''
-              message = message + '<br/>'
-            message = message + PMF('${name} is required, please correct.', 'name': _('\'Define the Sampler for the shceduled\''))
-          if message != ''
-            window.bika.lims.portalMessage message
-        return
-    return
-
-  workflow_transition_sample = ->
-    $('#workflow-transition-sample').click (event) ->
-      event.preventDefault()
-      date = $('#DateSampled').val()
-      sampler = $('#Sampler').val()
-      if date and sampler
-        form = $('form[name=\'header_form\']')
-        # this 'transition' key is scanned for in header_table.py/__call__
-        form.append '<input type=\'hidden\' name=\'transition\' value=\'sample\'/>'
-        form.submit()
-      else
-        message = ''
-        if date == '' or date == undefined or date == null
-          message = message + PMF('${name} is required, please correct.', 'name': _('Date Sampled'))
-        if sampler == '' or sampler == undefined or sampler == null
-          if message != ''
-            message = message + '<br/>'
-          message = message + PMF('${name} is required, please correct.', 'name': _('Sampler'))
-        if message != ''
-          window.bika.lims.portalMessage message
-      return
-    return
-
   that.load = ->
     # fires for all AR workflow transitions fired using the plone contentmenu workflow actions
     $('a[id^=\'workflow-transition\']').not('#workflow-transition-schedule_sampling').not('#workflow-transition-sample').click transition_with_publication_spec
-    # fires AR workflow transitions when using the schedule samplign transition
-    transition_schedule_sampling()
     return
 
   return
