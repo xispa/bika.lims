@@ -67,6 +67,15 @@ Functional Helpers:
     ...     from Testing.ZopeTestCase.utils import startZServer
     ...     ip, port = startZServer()
     ...     return "http://{}:{}/{}".format(ip, port, portal.id)
+    ...
+    >>> def get_current_states(objects):
+    ...     states = [getCurrentState(obj) for obj in objects]
+    ...     return sorted(set(states))
+    ...
+    >>> def get_allowed_transitions(objects):
+    ...     allowed = [getAllowedTransitions(obj) for obj in objects]
+    ...     allowed = [item for sublist in allowed for item in sublist]
+    ...     return sorted(set(allowed))
 
 Variables:
 
@@ -93,9 +102,6 @@ We will test with Lab Manager privileges:
     >>> setRoles(portal, TEST_USER_ID, ['LabManager',])
 
 
-Analysis Request and Sample creation with Sample Workflow Disabled
-==================================================================
-
 Sampling workflow is a setting that lives in Setup and enables an additional
 route in the workflow to keep track of the sampling process. If the sampling
 workflow is disabled, the Sample reaches the state `registered` first and is
@@ -104,6 +110,12 @@ status first and then, if no preservation is required, is automatically
 transitioned to `sample_due` state:
 
     >>> bikasetup.setSamplingWorkflowEnabled(False)
+    >>> bikasetup.getSamplingWorkflowEnabled()
+    False
+
+
+Primary Analysis Request
+========================
 
 Create a primary Analysis Request:
 
@@ -129,12 +141,12 @@ and Analyses:
     'sample_due'
 
     >>> partitions = sample.getSamplePartitions()
-    >>> [getCurrentState(part) for part in partitions]
+    >>> get_current_states(partitions)
     ['sample_due']
 
     >>> analyses = ar.getAnalyses()
-    >>> [getCurrentState(an) for an in analyses]
-    ['sample_due', 'sample_due']
+    >>> get_current_states(analyses)
+    ['sample_due']
 
 
 Validate transitions when Sample Due with rejections reasons disabled
@@ -147,8 +159,8 @@ the rejection of neither Analysis Requests nor Samples:
     >>> bikasetup.isRejectionWorkflowEnabled()
     False
 
-Thus, `receive` and `cancel` (from `cancellation_workflow`) are the only allowed
-transitions for the Analysis Request and Sample:
+Thus, `receive` and `cancel` are the only allowed transitions for the Analysis
+Request and Sample:
 
     >>> sorted(getAllowedTransitions(ar))
     ['cancel', 'receive']
@@ -156,18 +168,13 @@ transitions for the Analysis Request and Sample:
     >>> sorted(getAllowedTransitions(sample))
     ['cancel', 'receive']
 
-But although partitions can be cancelled, cannot be received individually:
+But although both partitions and analyses can be cancelled, none of them can be
+received individually:
 
-    >>> allowed = [getAllowedTransitions(part) for part in partitions]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> sorted(set(allowed))
+    >>> get_allowed_transitions(partitions)
     ['cancel']
 
-And the same with analyses:
-
-    >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> sorted(set(allowed))
+    >>> get_allowed_transitions(analyses)
     ['cancel']
 
 
@@ -185,8 +192,8 @@ rejection of Analysis Requests and Samples:
     >>> bikasetup.isRejectionWorkflowEnabled()
     True
 
-Thus, `reject`, `receive` and `cancel` (from `cancellation_workflow`) are the
-only allowed transitions for the Analysis Request and Sample:
+Thus, `reject`, `receive` and `cancel` are the only allowed transitions for the
+Analysis Request and Sample:
 
     >>> sorted(getAllowedTransitions(ar))
     ['cancel', 'receive', 'reject']
@@ -194,17 +201,144 @@ only allowed transitions for the Analysis Request and Sample:
     >>> sorted(getAllowedTransitions(sample))
     ['cancel', 'receive', 'reject']
 
-But although partitions can be cancelled, cannot be neither received or rejected
-individually:
+But although both partitions and analyses can be cancelled, none of them can be
+neither received nor rejected individually:
 
-    >>> allowed = [getAllowedTransitions(part) for part in partitions]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> sorted(set(allowed))
+    >>> get_allowed_transitions(partitions)
     ['cancel']
 
-And the same with analyses:
+    >>> get_allowed_transitions(analyses)
+    ['cancel']
 
-    >>> allowed = [getAllowedTransitions(analysis) for analysis in analyses]
-    >>> allowed = [item for sublist in allowed for item in sublist]
-    >>> sorted(set(allowed))
+
+Secondary Analysis Request
+==========================
+
+Create a primary Analysis Request:
+
+    >>> values = {
+    ...     'Client': client.UID(),
+    ...     'Contact': contact.UID(),
+    ...     'DateSampled': date_now,
+    ...     'SampleType': sampletype.UID()}
+    >>> service_uids = [Cu.UID(), Fe.UID()]
+    >>> ar1 = create_analysisrequest(client, request, values, service_uids)
+
+Create a secondary Analysis Request for the same Sample:
+
+    >>> sample = ar1.getSample()
+    >>> values['Sample'] = api.get_uid(sample)
+    >>> ar2 = create_analysisrequest(client, request, values, service_uids)
+
+Sample's current state is 'sample_due':
+
+    >>> getCurrentState(sample)
+    'sample_due'
+
+As well as the two Analysis Requests:
+
+    >>> getCurrentState(ar1)
+    'sample_due'
+
+    >>> getCurrentState(ar2)
+    'sample_due'
+
+And every object each Analysis Request relates to, such as Sample Partitions and
+Analyses:
+
+    >>> partitions1 = ar1.getPartitions()
+    >>> get_current_states(partitions1)
+    ['sample_due']
+
+    >>> partitions2 = ar2.getPartitions()
+    >>> get_current_states(partitions2)
+    ['sample_due']
+
+
+    >>> analyses1 = ar1.getAnalyses()
+    >>> get_current_states(analyses1)
+    ['sample_due']
+
+    >>> analyses2 = ar2.getAnalyses()
+    >>> get_current_states(analyses2)
+    ['sample_due']
+
+
+Validate transitions when Sample Due with rejections reasons disabled
+---------------------------------------------------------------------
+
+If no "Rejection reasons" have been entered in Setup, the system does not allow
+the rejection of neither Analysis Requests nor Samples:
+
+    >>> bikasetup.setRejectionReasons([])
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    False
+
+Thus, `receive` and `cancel` are the only allowed transitions for Analysis
+Requests and Sample:
+
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'receive']
+
+    >>> sorted(getAllowedTransitions(ar1))
+    ['cancel', 'receive']
+
+    >>> sorted(getAllowedTransitions(ar1))
+    ['cancel', 'receive']
+
+But although both partitions and analyses can be cancelled, none of them can be
+received individually:
+
+    >>> get_allowed_transitions(partitions1)
+    ['cancel']
+
+    >>> get_allowed_transitions(partitions2)
+    ['cancel']
+
+    >>> get_allowed_transitions(analyses1)
+    ['cancel']
+
+    >>> get_allowed_transitions(analyses2)
+    ['cancel']
+
+
+Validate transitions when Sample Due with rejections reasons enabled
+--------------------------------------------------------------------
+
+If "Rejection reasons" have been entered in Setup, the system does allow the
+rejection of Analysis Requests and Samples:
+
+    >>> reasons = [{'checkbox': 'on',
+    ...             'textfield-0': 'a',
+    ...             'textfield-1': 'b',
+    ...             'textfield-2': 'c'}]
+    >>> bikasetup.setRejectionReasons(reasons)
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    True
+
+Thus, `reject`, `receive` and `cancel` are the only allowed transitions for the
+Analysis Request and Sample:
+
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'receive', 'reject']
+
+    >>> sorted(getAllowedTransitions(ar1))
+    ['cancel', 'receive', 'reject']
+
+    >>> sorted(getAllowedTransitions(ar2))
+    ['cancel', 'receive', 'reject']
+
+But although both partitions and analyses can be cancelled, none of them can be
+neither received nor rejected individually:
+
+    >>> get_allowed_transitions(partitions1)
+    ['cancel']
+
+    >>> get_allowed_transitions(partitions2)
+    ['cancel']
+
+    >>> get_allowed_transitions(analyses1)
+    ['cancel']
+
+    >>> get_allowed_transitions(analyses2)
     ['cancel']
