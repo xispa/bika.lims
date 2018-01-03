@@ -342,3 +342,92 @@ neither received nor rejected individually:
 
     >>> get_allowed_transitions(analyses2)
     ['cancel']
+
+Disable rejection workflow again:
+
+    >>> bikasetup.setRejectionReasons([])
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    False
+
+
+Permissions
+===========
+
+Transition `no_sampling_workflow` requires "Bika: Add Sample" permission, which
+is granted for roles "Manager", "Owner", "LabManager", "LabClerk" and "Sampler".
+
+When `sample` status is reached due to `no_sampling_workflow` transition, the
+system automatically triggers the transition `sample_due`. Thus, users that can
+trigger `no_sampling_workflow` transition must also be allowed to trigger the
+transition `sample_due`.
+
+We've done the tests above by using a user with LabManager privileges. Try with
+other roles.
+
+LabClerk
+--------
+
+Test with Lab Clerk privileges:
+
+    >>> setRoles(portal, TEST_USER_ID, ['LabClerk',])
+
+Create a primary Analysis Request:
+
+    >>> values = {
+    ...     'Client': client.UID(),
+    ...     'Contact': contact.UID(),
+    ...     'DateSampled': date_now,
+    ...     'SampleType': sampletype.UID()}
+    >>> service_uids = [Cu.UID(), Fe.UID()]
+    >>> ar = create_analysisrequest(client, request, values, service_uids)
+
+Validate if the transitions have been successfully triggered:
+
+    >>> getCurrentState(ar)
+    'sample_due'
+
+    >>> sample = ar.getSample()
+    >>> getCurrentState(sample)
+    'sample_due'
+
+    >>> partitions = sample.getSamplePartitions()
+    >>> get_current_states(partitions)
+    ['sample_due']
+
+    >>> analyses = ar.getAnalyses()
+    >>> get_current_states(analyses)
+    ['sample_due']
+
+Sampler
+-------
+
+Test with Lab Clerk privileges:
+
+    >>> setRoles(portal, TEST_USER_ID, ['Sampler',])
+
+Create a primary Analysis Request:
+
+    >>> values = {
+    ...     'Client': client.UID(),
+    ...     'Contact': contact.UID(),
+    ...     'DateSampled': date_now,
+    ...     'SampleType': sampletype.UID()}
+    >>> service_uids = [Cu.UID(), Fe.UID()]
+    >>> ar = create_analysisrequest(client, request, values, service_uids)
+
+Validate if the transitions have been successfully triggered:
+
+    >>> getCurrentState(ar)
+    'sample_due'
+
+    >>> sample = ar.getSample()
+    >>> getCurrentState(sample)
+    'sample_due'
+
+    >>> partitions = sample.getSamplePartitions()
+    >>> get_current_states(partitions)
+    ['sample_due']
+
+    >>> analyses = ar.getAnalyses()
+    >>> get_current_states(analyses)
+    ['sample_due']
