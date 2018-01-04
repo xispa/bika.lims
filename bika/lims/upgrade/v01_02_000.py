@@ -32,10 +32,6 @@ def upgrade(tool):
     # -------- ADD YOUR STUFF HERE --------
     fix_workflow_transitions(portal)
 
-    # Workflow refactoring
-    from workflow_refactoring import fix_workflows
-    fix_workflows(portal)
-
     # Migration to senaite.core
     setup = portal.portal_setup
     setup.runImportStepFromProfile('profile-bika.lims:default', 'typeinfo')
