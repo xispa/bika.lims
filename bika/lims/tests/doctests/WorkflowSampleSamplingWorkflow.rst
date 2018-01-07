@@ -217,8 +217,216 @@ Disable rejection reasons again:
     False
 
 
+Validate transitions for "to_be_sampled" when a Sampler is set
+--------------------------------------------------------------
+
+Set a Sampler for the Sample:
+
+    >>> sample.setSampler(sampler.getId())
+    >>> sample.getSampler()
+    'sampler'
+
+With rejection reasons disabled
+...............................
+
+If no "Rejection reasons" have been entered in Setup, the system does not allow
+the rejection of neither Analysis Requests nor Samples:
+
+    >>> bikasetup.setRejectionReasons([])
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    False
+
+Thus, `sample`, `scheduled_sampling` and `cancel` are the only allowed
+transitions for both the Analysis Request and Sample:
+
+    >>> sorted(getAllowedTransitions(ar))
+    ['cancel', 'sample', 'scheduled_sampling']
+
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'sample', 'scheduled_sampling']
+
+But although both partitions and analyses can be cancelled, none of them can be
+neither sampled nor scheduled individually:
+
+    >>> get_allowed_transitions(partitions)
+    ['cancel']
+
+    >>> get_allowed_transitions(analyses)
+    ['cancel']
+
+
+With rejection reasons enabled
+..............................
+
+If "Rejection reasons" have been entered in Setup, the system does allow the
+rejection of Analysis Requests and Samples:
+
+    >>> reasons = [{'checkbox': 'on',
+    ...             'textfield-0': 'a',
+    ...             'textfield-1': 'b',
+    ...             'textfield-2': 'c'}]
+    >>> bikasetup.setRejectionReasons(reasons)
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    True
+
+Thus, `sample`, `reject`, `scheduled_sampling` and `cancel` are the only allowed
+transitions for both the Analysis Request and Sample:
+
+    >>> sorted(getAllowedTransitions(ar))
+    ['cancel', 'reject', 'sample', 'scheduled_sampling']
+
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'reject', 'sample', 'scheduled_sampling]
+
+But although both partitions and analyses can be cancelled, none of them can be
+sampled, scheduled or rejected individually:
+
+    >>> get_allowed_transitions(partitions)
+    ['cancel']
+
+    >>> get_allowed_transitions(analyses)
+    ['cancel']
+
+Disable rejection reasons again:
+
+    >>> bikasetup.setRejectionReasons([])
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    False
+
+And unset the Sampler:
+
+    >>> sample.setSampler(None)
+    >>> sample.getSampler()
+    ''
+
+Secondary Analysis Request
+==========================
+
+Create a primary Analysis Request:
+
+    >>> values = {
+    ...     'Client': client.UID(),
+    ...     'Contact': contact.UID(),
+    ...     'SamplingDate': date_now,
+    ...     'SampleType': sampletype.UID()}
+    >>> service_uids = [Cu.UID(), Fe.UID()]
+    >>> ar1 = create_analysisrequest(client, request, values, service_uids)
+
+Create a secondary Analysis Request for the same Sample:
+
+    >>> sample = ar1.getSample()
+    >>> values['Sample'] = api.get_uid(sample)
+    >>> ar2 = create_analysisrequest(client, request, values, service_uids)
+
+Because sampling workflow is enabled, the current state of the Analysis Request
+is `to_be_sampled`:
+
+    >>> getCurrentState(sample)
+    'to_be_sampled'
+
+As well as the Sample object the Analysis Request relates to, Sample Partitions
+and Analyses:
+
+    >>> getCurrentState(ar1)
+    'to_be_sampled'
+
+    >>> getCurrentState(ar2)
+    'to_be_sampled'
+
+    >>> partitions1 = ar1.getPartitions()
+    >>> get_current_states(partitions1)
+    ['to_be_sampled']
+
+    >>> partitions2 = ar2.getPartitions()
+    >>> get_current_states(partitions2)
+    ['to_be_sampled']
+
+    >>> analyses1 = ar1.getAnalyses()
+    >>> get_current_states(analyses1)
+    ['to_be_sampled']
+
+    >>> analyses2 = ar2.getAnalyses()
+    >>> get_current_states(analyses2)
+    ['to_be_sampled']
+
+//TODO DONE UNTIL HERE
+
 Validate transitions for "to_be_sampled" when a Sampler is not set
 ------------------------------------------------------------------
+
+When a "Sampler" is not set, the transition `sample` is not allowed.
+
+
+With rejection reasons disabled
+...............................
+
+If no "Rejection reasons" have been entered in Setup, the system does not allow
+the rejection of neither Analysis Requests nor Samples:
+
+    >>> bikasetup.setRejectionReasons([])
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    False
+
+Thus, `scheduled_sampling` and `cancel` are the only allowed transitions for
+both the Analysis Request and Sample:
+
+    >>> sorted(getAllowedTransitions(ar))
+    ['cancel', 'scheduled_sampling']
+
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'scheduled_sampling']
+
+But although both partitions and analyses can be cancelled, none of them can be
+scheduled individually:
+
+    >>> get_allowed_transitions(partitions)
+    ['cancel']
+
+    >>> get_allowed_transitions(analyses)
+    ['cancel']
+
+
+With rejection reasons enabled
+..............................
+
+If "Rejection reasons" have been entered in Setup, the system does allow the
+rejection of Analysis Requests and Samples:
+
+    >>> reasons = [{'checkbox': 'on',
+    ...             'textfield-0': 'a',
+    ...             'textfield-1': 'b',
+    ...             'textfield-2': 'c'}]
+    >>> bikasetup.setRejectionReasons(reasons)
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    True
+
+Thus, `reject`, `scheduled_sampling` and `cancel` are the only allowed
+transitions for both the Analysis Request and Sample:
+
+    >>> sorted(getAllowedTransitions(ar))
+    ['cancel', 'reject', 'scheduled_sampling']
+
+    >>> sorted(getAllowedTransitions(sample))
+    ['cancel', 'reject', 'scheduled_sampling]
+
+But although both partitions and analyses can be cancelled, none of them can be
+neither scheduled nor rejected individually:
+
+    >>> get_allowed_transitions(partitions)
+    ['cancel']
+
+    >>> get_allowed_transitions(analyses)
+    ['cancel']
+
+Disable rejection reasons again:
+
+    >>> bikasetup.setRejectionReasons([])
+    >>> bikasetup.isRejectionWorkflowEnabled()
+    False
+
+
+Validate transitions for "to_be_sampled" when a Sampler is set
+--------------------------------------------------------------
 
 Set a Sampler for the Sample:
 
